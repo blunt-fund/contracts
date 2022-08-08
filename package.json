@@ -11,6 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "@jbx-protocol/contracts-v2": "^4.0.0",
+    "@jbx-protocol/juice-nft-rewards": "^1.0.0",
     "@openzeppelin/contracts": "^4.6.0"
   },
   "devDependencies": {
