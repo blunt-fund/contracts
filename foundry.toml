@@ -1,0 +1,12 @@
+[profile.default]
+libs = ['lib']
+out = 'out'
+remappings = [
+    '@jbx-protocol=node_modules/@jbx-protocol/',
+    '@openzeppelin=node_modules/@openzeppelin/',
+]
+src = 'contracts'
+test = 'forge-test'
+script = 'scripts'
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
