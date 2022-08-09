@@ -28,7 +28,14 @@ contract BluntDelegateDeployer is IBluntDelegateDeployer {
     uint256 _projectId,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) external override returns (address newDelegate) {
-    newDelegate = address(new BluntDelegate(_projectId, _deployBluntDelegateData.directory));
+    newDelegate = address(
+      new BluntDelegate(
+        _projectId,
+        _deployBluntDelegateData.directory,
+        _deployBluntDelegateData.tokenStore,
+        _deployBluntDelegateData.hardCap
+      )
+    );
 
     emit DelegateDeployed(_projectId, newDelegate);
 

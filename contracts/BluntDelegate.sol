@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBDirectory.sol';
+import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBTokenStore.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBFundingCycleDataSource.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBPayDelegate.sol';
 
@@ -11,6 +12,7 @@ contract BluntDelegate is IJBFundingCycleDataSource, IJBPayDelegate {
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
   error INVALID_PAYMENT_EVENT();
+  error CAP_REACHED();
 
   //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
@@ -27,6 +29,14 @@ contract BluntDelegate is IJBFundingCycleDataSource, IJBPayDelegate {
     The directory of terminals and controllers for projects.
   */
   IJBDirectory public immutable directory;
+
+  IJBTokenStore public immutable tokenStore;
+
+  /** 
+    @notice
+    The maximum amount of project tokens allowed to be issued while this data source is in effect. 
+  */
+  uint256 public immutable hardCap;
 
   //*********************************************************************//
   // ------------------------- external views -------------------------- //
@@ -104,10 +114,18 @@ contract BluntDelegate is IJBFundingCycleDataSource, IJBPayDelegate {
   /**
     @param _projectId The ID of the project for which this NFT should be minted in response to payments made. 
     @param _directory The directory of terminals and controllers for projects.
+    @param _hardCap The maximum amount of project tokens that can be issued.
   */
-  constructor(uint256 _projectId, IJBDirectory _directory) {
+  constructor(
+    uint256 _projectId,
+    IJBDirectory _directory,
+    IJBTokenStore _tokenStore,
+    uint256 _hardCap
+  ) {
     projectId = _projectId;
     directory = _directory;
+    tokenStore = _tokenStore;
+    hardCap = _hardCap;
   }
 
   //*********************************************************************//
@@ -129,6 +147,9 @@ contract BluntDelegate is IJBFundingCycleDataSource, IJBPayDelegate {
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
+
+    // Make sure the token supply is under the cap.
+    if (hardCap != 0 && tokenStore.totalSupplyOf(_data.projectId) > hardCap) revert CAP_REACHED();
 
     // issue the slices to _data.beneficiary bassed on _data.amount.value.
   }
