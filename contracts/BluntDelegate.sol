@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegate.sol';
+import '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBDirectory.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBTokenStore.sol';
@@ -14,7 +15,8 @@ contract BluntDelegate is
   IBluntDelegate,
   IJBFundingCycleDataSource,
   IJBPayDelegate,
-  IJBRedemptionDelegate
+  IJBRedemptionDelegate,
+  IERC1155Receiver
 {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
@@ -254,6 +256,8 @@ contract BluntDelegate is
     if (slicerId != 0) revert SLICER_ALREADY_CREATED();
     // TODO: Add requirement: Revert if current funding cycle hasn't ended
 
+    // TODO: Issue ERC20 and get address
+
     // Add references for sliceParams
     Payee[] memory payees = new Payee[](1);
     payees[0] = Payee(address(this), slicesToMint, true);
@@ -320,7 +324,7 @@ contract BluntDelegate is
 
   /**
     @notice 
-    Allows a beneficiary to get any unclaimed slices for itself.
+    Allows a beneficiary to get any unclaimed slices to itself.
 
     @dev 
     This function will revert if the slicer hasn't been created yet.
@@ -336,5 +340,31 @@ contract BluntDelegate is
       slicesToClaim[msg.sender],
       ''
     );
+  }
+
+  /**
+   * @dev See `ERC1155Receiver`
+   */
+  function onERC1155Received(
+    address,
+    address,
+    uint256,
+    uint256,
+    bytes memory
+  ) external virtual override returns (bytes4) {
+    return this.onERC1155Received.selector;
+  }
+
+  /**
+   * @dev See `ERC1155Receiver`
+   */
+  function onERC1155BatchReceived(
+    address,
+    address,
+    uint256[] memory,
+    uint256[] memory,
+    bytes memory
+  ) public virtual override returns (bytes4) {
+    return this.onERC1155BatchReceived.selector;
   }
 }
