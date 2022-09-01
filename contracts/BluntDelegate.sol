@@ -332,12 +332,18 @@ contract BluntDelegate is
   function claimSlices() external override {
     if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
 
-    // Send slices to beneficiaries along with a proportional amount of tokens accrued
+    // Add reference to slicesToClaim for msg.sender
+    uint256 slicesAmount = slicesToClaim[msg.sender];
+
+    // Update state
+    slicesToClaim[msg.sender] = 0;
+
+    // Send slices to beneficiary along with a proportional amount of tokens accrued
     ISliceCore(_sliceCoreAddress).safeTransferFromUnreleased(
       address(this),
       msg.sender,
       slicerId,
-      slicesToClaim[msg.sender],
+      slicesAmount,
       ''
     );
   }
