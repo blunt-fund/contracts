@@ -102,3 +102,19 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     );
   }
 }
+
+/** TODO:
+Handle additional params and logic
+
+PARAMS
+- Round token allocation, for next FC
+- Reserved rate distribution, for next FC
+- Round duration, next FC length
+- Project token symbol and issuance
+  - Can this be increased arbitrarily for subsequent FC? Or can issuance only be reduced with discount rate
+
+LOGIC
+- Where to add closeRound requirements?
+- `issueSlices`: Add requirement, FC related to blunt round must have been closed
+- `issueSlices`: Handle issuance of Project ERC20
+*/

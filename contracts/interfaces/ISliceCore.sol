@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.0;
 
-import '../structs/SliceParams.sol';
-import './IOwnable.sol';
+import './ISlicer.sol';
+import './ISlicerManager.sol';
 import '@openzeppelin/contracts/interfaces/IERC1155.sol';
 import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 
-interface ISliceCore is IOwnable, IERC1155, IERC2981 {
+interface ISliceCore is IERC1155, IERC2981 {
+  function slicerManager() external view returns (ISlicerManager slicerManagerAddress);
+
   function slice(SliceParams calldata params) external;
 
   function reslice(
@@ -14,22 +16,6 @@ interface ISliceCore is IOwnable, IERC1155, IERC2981 {
     address payable[] calldata accounts,
     int32[] calldata tokensDiffs
   ) external;
-
-  function safeTransferFrom(
-    address from,
-    address to,
-    uint256 id,
-    uint256 amount,
-    bytes memory data
-  ) external override;
-
-  function safeBatchTransferFrom(
-    address from,
-    address to,
-    uint256[] memory ids,
-    uint256[] memory amounts,
-    bytes memory data
-  ) external override;
 
   function slicerBatchTransfer(
     address from,
@@ -56,11 +42,18 @@ interface ISliceCore is IOwnable, IERC1155, IERC2981 {
     uint256 royaltyPercentage
   ) external;
 
-  function royaltyInfo(uint256 tokenId, uint256 salePrice)
+  function _slicers(uint256 id)
     external
     view
-    override
-    returns (address receiver, uint256 royaltyAmount);
+    returns (
+      ISlicer,
+      address,
+      uint40,
+      uint32,
+      uint8,
+      uint8,
+      uint8
+    );
 
   function slicers(uint256 id) external view returns (address);
 
@@ -71,6 +64,8 @@ interface ISliceCore is IOwnable, IERC1155, IERC2981 {
   function supply() external view returns (uint256);
 
   function exists(uint256 id) external view returns (bool);
+
+  function owner() external view returns (address owner);
 
   function _setBasePath(string calldata basePath_) external;
 
