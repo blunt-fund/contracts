@@ -375,6 +375,21 @@ contract BluntDelegate is
     }
   }
 
+  function getRoundInfo()
+    external
+    view
+    override
+    returns (
+      uint256,
+      uint256,
+      uint256,
+      uint40,
+      uint40
+    )
+  {
+    return (totalContributions, target, hardCap, releaseTimelock, transferTimelock);
+  }
+
   /**
    * @dev See `ERC1155Receiver`
    */
