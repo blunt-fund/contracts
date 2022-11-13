@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.6;
 
+import '../interfaces/ISliceCore.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBDirectory.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBTokenStore.sol';
 
@@ -13,4 +14,8 @@ struct DeployBluntDelegateData {
   IJBDirectory directory;
   IJBTokenStore tokenStore;
   uint256 hardCap;
+  uint256 target;
+  uint40 releaseTimelock;
+  uint40 transferTimelock;
+  ISliceCore sliceCore;
 }
