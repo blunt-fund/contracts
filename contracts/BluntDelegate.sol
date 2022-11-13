@@ -384,10 +384,11 @@ contract BluntDelegate is
       uint256,
       uint256,
       uint40,
-      uint40
+      uint40,
+      uint256
     )
   {
-    return (totalContributions, target, hardCap, releaseTimelock, transferTimelock);
+    return (totalContributions, target, hardCap, releaseTimelock, transferTimelock, slicerId);
   }
 
   /**

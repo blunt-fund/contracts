@@ -18,6 +18,7 @@ interface IBluntDelegate {
       uint256,
       uint256,
       uint40,
-      uint40
+      uint40,
+      uint256
     );
 }
