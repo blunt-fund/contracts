@@ -6,11 +6,16 @@ import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBController.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBProjects.sol';
 import '@jbx-protocol/contracts-v2/contracts/libraries/JBOperations.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
+import './BluntDelegateDeployer.sol';
 
-contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable {
+contract BluntDelegateProjectDeployer is
+  BluntDelegateDeployer,
+  IBluntDelegateProjectDeployer,
+  JBOperatable
+{
   //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
-  //*********************************************************************//
+  //************************************* ********************************//
 
   /** 
     @notice
@@ -18,23 +23,14 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   */
   IJBController public immutable override controller;
 
-  /** 
-    @notice
-    The contract responsibile for deploying the delegate. 
-  */
-  IBluntDelegateDeployer public immutable override delegateDeployer;
-
   //*********************************************************************//
   // -------------------------- constructor ---------------------------- //
   //*********************************************************************//
 
-  constructor(
-    IJBController _controller,
-    IBluntDelegateDeployer _delegateDeployer,
-    IJBOperatorStore _operatorStore
-  ) JBOperatable(_operatorStore) {
+  constructor(IJBController _controller, IJBOperatorStore _operatorStore)
+    JBOperatable(_operatorStore)
+  {
     controller = _controller;
-    delegateDeployer = _delegateDeployer;
   }
 
   //*********************************************************************//
@@ -60,10 +56,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     projectId = controller.projects().count() + 1;
 
     // Deploy the data source contract.
-    address _delegateAddress = delegateDeployer.deployDelegateFor(
-      projectId,
-      _deployBluntDelegateData
-    );
+    address _delegateAddress = deployDelegateFor(projectId, _deployBluntDelegateData);
 
     // Set the data source address as the data source of the provided metadata.
     _launchProjectData.metadata.dataSource = _delegateAddress;

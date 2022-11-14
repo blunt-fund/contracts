@@ -4,13 +4,7 @@ pragma solidity 0.8.6;
 import './BluntDelegate.sol';
 import './interfaces/IBluntDelegateDeployer.sol';
 
-contract BluntDelegateDeployer is IBluntDelegateDeployer {
-  //*********************************************************************//
-  // -------------------------- constructor ---------------------------- //
-  //*********************************************************************//
-
-  constructor() {}
-
+abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
   //*********************************************************************//
   // ---------------------- external transactions ---------------------- //
   //*********************************************************************//
@@ -27,7 +21,7 @@ contract BluntDelegateDeployer is IBluntDelegateDeployer {
   function deployDelegateFor(
     uint256 _projectId,
     DeployBluntDelegateData memory _deployBluntDelegateData
-  ) external override returns (address newDelegate) {
+  ) internal returns (address newDelegate) {
     newDelegate = address(
       new BluntDelegate(
         _projectId,
