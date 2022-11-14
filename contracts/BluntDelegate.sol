@@ -334,15 +334,14 @@ contract BluntDelegate is
     // Add reference for slices amounts of each beneficiary
     uint256[] memory amounts = new uint256[](beneficiaries.length);
 
-    uint256 slicesAmount;
+    uint256 contribution;
     // Loop over beneficiaries
     for (uint256 i; i < beneficiaries.length; ) {
-      // Add reference for amount of slices to claim
-      slicesAmount = contributions[beneficiaries[i]];
-      if (slicesAmount != 0) {
-        // Set the beneficiary amount in amounts array
-        amounts[i] = slicesAmount;
-        // Set contributions[beneficiary] to 0
+      contribution = contributions[beneficiaries[i]];
+      if (contribution != 0) {
+        // Calculate slices to claim and set the beneficiary amount in amounts array
+        amounts[i] = contribution / TOKENS_PER_SLICE;
+        // Update storage
         contributions[beneficiaries[i]] = 0;
       }
       unchecked {
@@ -365,14 +364,20 @@ contract BluntDelegate is
     if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
 
     // Add reference to contributions for msg.sender
-    uint256 slicesAmount = contributions[msg.sender];
+    uint256 contribution = contributions[msg.sender];
 
-    if (slicesAmount != 0) {
-      // Update state
+    if (contribution != 0) {
+      // Update storage
       contributions[msg.sender] = 0;
 
       // Send slices to beneficiary along with a proportional amount of tokens accrued
-      sliceCore.safeTransferFromUnreleased(address(this), msg.sender, slicerId, slicesAmount, '');
+      sliceCore.safeTransferFromUnreleased(
+        address(this),
+        msg.sender,
+        slicerId,
+        contribution / TOKENS_PER_SLICE,
+        ''
+      );
     }
   }
 
