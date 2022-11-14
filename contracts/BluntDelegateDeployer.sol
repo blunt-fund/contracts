@@ -22,18 +22,7 @@ abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
     uint256 _projectId,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) internal returns (address newDelegate) {
-    newDelegate = address(
-      new BluntDelegate(
-        _projectId,
-        _deployBluntDelegateData.directory,
-        _deployBluntDelegateData.tokenStore,
-        _deployBluntDelegateData.sliceCore,
-        _deployBluntDelegateData.hardCap,
-        _deployBluntDelegateData.target,
-        _deployBluntDelegateData.releaseTimelock,
-        _deployBluntDelegateData.transferTimelock
-      )
-    );
+    newDelegate = address(new BluntDelegate(_projectId, _deployBluntDelegateData));
 
     emit DelegateDeployed(_projectId, newDelegate);
 

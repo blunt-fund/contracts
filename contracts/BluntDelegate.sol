@@ -35,6 +35,18 @@ contract BluntDelegate is
 
   /**
     @notice
+    Ratio between amount of tokens contributed and slices minted
+  */
+  uint64 public constant TOKENS_PER_SLICE = 1e15; // 1 slice every 0.001 ETH
+
+  /**
+    @notice
+    Max total contribution allowed, calculated from `TOKENS_PER_SLICE * type(uint32).max`
+  */
+  uint88 public constant MAX_CONTRIBUTION = 4.2e6 ether;
+
+  /**
+    @notice
     The ID of the project this NFT should be distributed for.
   */
   uint256 public immutable projectId;
@@ -47,17 +59,21 @@ contract BluntDelegate is
 
   IJBTokenStore public immutable tokenStore;
 
+  IJBFundingCycleStore public immutable fundingCycleStore;
+
   /** 
     @notice
-    The minimum amount of project tokens allowed to be issued while this data source is in effect. 
+    The minimum amount of contributions while this data source is in effect.
+    @dev uint88 is enough as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint256 public immutable target;
+  uint88 public immutable target;
   /** 
     @notice
-    The maximum amount of project tokens allowed to be issued while this data source is in effect. 
+    The maximum amount of contributions while this data source is in effect. 
+    @dev uint88 is enough as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint256 public immutable hardCap;
-  /** 
+  uint88 public immutable hardCap;
+  /**  
     @notice
     The timestamp when the slicer becomes releasable.
   */
@@ -68,23 +84,18 @@ contract BluntDelegate is
   */
   uint40 public immutable transferTimelock;
 
+  /** 
+    @notice
+    The number of the funding cycle related to the blunt round.
+    @dev uint40 for bit packing
+  */
+  uint40 public immutable fundingCycleRound;
+
   /**
     @notice
     SliceCore instance
   */
   ISliceCore public immutable sliceCore;
-
-  /**
-    @notice
-    Ratio between amount of tokens contributed and slices minted
-  */
-  uint64 public constant TOKENS_PER_SLICE = 1e15; // 1 slice every 0.001 ETH
-
-  /**
-    @notice
-    Max total contribution allowed, calculated from `TOKENS_PER_SLICE * type(uint32).max`
-  */
-  uint96 public constant MAX_CONTRIBUTION = 4.2e6 ether;
 
   //*********************************************************************//
   // ---------------- public mutable stored properties ----------------- //
@@ -185,27 +196,22 @@ contract BluntDelegate is
 
   /**
     @param _projectId The ID of the project for which this NFT should be minted in response to payments made. 
-    @param _directory The directory of terminals and controllers for projects.
-    @param _hardCap The maximum amount of project tokens that can be issued.
+    @param _deployBluntDelegateData Data required for deployment
   */
-  constructor(
-    uint256 _projectId,
-    IJBDirectory _directory,
-    IJBTokenStore _tokenStore,
-    ISliceCore _sliceCore,
-    uint256 _hardCap,
-    uint256 _target,
-    uint40 _releaseTimelock,
-    uint40 _transferTimelock
-  ) {
+  constructor(uint256 _projectId, DeployBluntDelegateData memory _deployBluntDelegateData) {
     projectId = _projectId;
-    directory = _directory;
-    tokenStore = _tokenStore;
-    sliceCore = _sliceCore;
-    hardCap = _hardCap;
-    target = _target;
-    releaseTimelock = _releaseTimelock;
-    transferTimelock = _transferTimelock;
+    directory = _deployBluntDelegateData.directory;
+    tokenStore = _deployBluntDelegateData.tokenStore;
+    fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
+    sliceCore = _deployBluntDelegateData.sliceCore;
+    hardCap = _deployBluntDelegateData.hardCap;
+    target = _deployBluntDelegateData.target;
+    releaseTimelock = _deployBluntDelegateData.releaseTimelock;
+    transferTimelock = _deployBluntDelegateData.transferTimelock;
+
+    fundingCycleRound = uint40(
+      _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number
+    );
   }
 
   //*********************************************************************//
@@ -237,7 +243,7 @@ contract BluntDelegate is
     totalContributions += _data.amount.value;
 
     // Make sure totalContributions is below `hardCap` and `MAX_CONTRIBUTION`
-    uint256 cap = hardCap != 0 && hardCap < MAX_CONTRIBUTION ? hardCap : MAX_CONTRIBUTION;
+    uint256 cap = hardCap != 0 ? hardCap : MAX_CONTRIBUTION;
     if (totalContributions > cap) revert CAP_REACHED();
 
     // Cannot overflow as totalContributions would overflow first
@@ -295,7 +301,7 @@ contract BluntDelegate is
     // TODO: @jango Issue ERC20 and get address
     address currency;
 
-    // Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
+    /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
     uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
 
     // Add references for sliceParams
