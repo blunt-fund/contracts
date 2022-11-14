@@ -22,6 +22,7 @@ contract BluntDelegate is
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
   error INVALID_PAYMENT_EVENT();
+  error FUNDING_CYCLE_NOT_ENDED();
   error CAP_REACHED();
   error TARGET_NOT_REACHED();
   error SLICER_ALREADY_CREATED();
@@ -291,7 +292,8 @@ contract BluntDelegate is
   function issueSlices() external override {
     if (slicerId != 0) revert SLICER_ALREADY_CREATED();
 
-    // TODO: @jango Add requirement: Revert if current funding cycle hasn't ended? What other requirements
+    if (fundingCycleStore.currentOf(projectId).number == fundingCycleRound)
+      revert FUNDING_CYCLE_NOT_ENDED();
 
     // TODO: Add this in requirements for closing funding cycle
     if (target != 0) {
