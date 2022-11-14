@@ -33,11 +33,11 @@ contract BluntDelegateDeployer is IBluntDelegateDeployer {
         _projectId,
         _deployBluntDelegateData.directory,
         _deployBluntDelegateData.tokenStore,
+        _deployBluntDelegateData.sliceCore,
         _deployBluntDelegateData.hardCap,
         _deployBluntDelegateData.target,
         _deployBluntDelegateData.releaseTimelock,
-        _deployBluntDelegateData.transferTimelock,
-        _deployBluntDelegateData.sliceCore
+        _deployBluntDelegateData.transferTimelock
       )
     );
 

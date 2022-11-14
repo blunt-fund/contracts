@@ -192,20 +192,20 @@ contract BluntDelegate is
     uint256 _projectId,
     IJBDirectory _directory,
     IJBTokenStore _tokenStore,
+    ISliceCore _sliceCore,
     uint256 _hardCap,
     uint256 _target,
     uint40 _releaseTimelock,
-    uint40 _transferTimelock,
-    ISliceCore _sliceCore
+    uint40 _transferTimelock
   ) {
     projectId = _projectId;
     directory = _directory;
     tokenStore = _tokenStore;
+    sliceCore = _sliceCore;
     hardCap = _hardCap;
     target = _target;
     releaseTimelock = _releaseTimelock;
     transferTimelock = _transferTimelock;
-    sliceCore = _sliceCore;
   }
 
   //*********************************************************************//
@@ -214,7 +214,8 @@ contract BluntDelegate is
 
   /**
     @notice 
-    Part of IJBPayDelegate, this function gets called when the project receives a payment. It will update storage for the NFT mint if conditions are met.
+    Part of IJBPayDelegate, this function gets called when the project receives a payment. 
+    It will update storage for the slices mint if conditions are met.
 
     @dev 
     This function will revert if the contract calling is not one of the project's terminals. 
@@ -247,7 +248,8 @@ contract BluntDelegate is
 
   /**
     @notice 
-    Part of IJBRedemptionDelegate, this function gets called when the beneficiary redeems tokens. It will update storage for the NFT mint.
+    Part of IJBRedemptionDelegate, this function gets called when the beneficiary redeems tokens. 
+    It will update storage for the slices mint if conditions are met.
 
     @dev 
     This function will revert if the contract calling is not one of the project's terminals. 
@@ -265,7 +267,6 @@ contract BluntDelegate is
     // Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
     if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
-    // TODO: @jango Just to be sure, can we assume what's written in the line below to be always true?
     // Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
     unchecked {
       // Update totalContributions and contributions with amount redeemed
@@ -276,7 +277,7 @@ contract BluntDelegate is
 
   /**
     @notice 
-    Creates slicer and issues `totalContributions` to this contract.
+    Creates slicer and issues `slicesToMint` to this contract.
 
     @dev 
     This function will revert if the funding cycle related to the blunt round hasn't ended or if the slicer has already been created.
@@ -349,7 +350,7 @@ contract BluntDelegate is
       }
     }
 
-    // Send slices to beneficiaries along with any accrued earnings
+    // Send slices to beneficiaries along with any earnings
     sliceCore.slicerBatchTransfer(address(this), beneficiaries, slicerId, amounts, false);
   }
 
