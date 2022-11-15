@@ -3,6 +3,7 @@ pragma solidity 0.8.6;
 
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegate.sol';
+import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBDirectory.sol';
@@ -16,7 +17,8 @@ contract BluntDelegate is
   IJBFundingCycleDataSource,
   IJBPayDelegate,
   IJBRedemptionDelegate,
-  IERC1155Receiver
+  IERC1155Receiver,
+  IERC721Receiver
 {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
@@ -404,7 +406,7 @@ contract BluntDelegate is
     uint256,
     uint256,
     bytes memory
-  ) external virtual override returns (bytes4) {
+  ) public override returns (bytes4) {
     return this.onERC1155Received.selector;
   }
 
@@ -417,8 +419,20 @@ contract BluntDelegate is
     uint256[] memory,
     uint256[] memory,
     bytes memory
-  ) public virtual override returns (bytes4) {
+  ) public override returns (bytes4) {
     return this.onERC1155BatchReceived.selector;
+  }
+
+  /**
+   * @dev See `ERC721Receiver`
+   */
+  function onERC721Received(
+    address,
+    address,
+    uint256,
+    bytes calldata
+  ) public override returns (bytes4) {
+    return this.onERC721Received.selector;
   }
 }
 
