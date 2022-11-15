@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.6;
+pragma solidity 0.8.17;
 
 import '@jbx-protocol/contracts-v2/contracts/abstract/JBOperatable.sol';
 import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBController.sol';
