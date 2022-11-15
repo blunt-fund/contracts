@@ -485,12 +485,12 @@ contract BluntDelegate is IBluntDelegate {
       });
 
       // Create slicer, mint slices and issue project token
-      address payable slicerAddress = _mintSlicesToDelegate();
+      address slicerAddress = _mintSlicesToDelegate();
 
       // If first split beneficiary is unset, it's reserved to the slicer
       if (afterRoundSplits[0].splits[0].beneficiary == address(0)) {
         // Set up slicer split
-        afterRoundSplits[0].splits[0].beneficiary = slicerAddress;
+        afterRoundSplits[0].splits[0].beneficiary = payable(slicerAddress);
         afterRoundSplits[0].splits[0].preferClaimed = true;
       }
 
@@ -514,7 +514,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice 
     Creates project's token, slicer and issues `slicesToMint` to this contract.
   */
-  function _mintSlicesToDelegate() private returns (address payable slicerAddress) {
+  function _mintSlicesToDelegate() private returns (address slicerAddress) {
     /// Issue ERC20 project token and get address
     address currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
 
@@ -529,7 +529,8 @@ contract BluntDelegate is IBluntDelegate {
     acceptedCurrencies[0] = currency;
 
     /// Create slicer and mint all slices to this address
-    sliceCore.slice(
+    uint256 slicerId_;
+    (slicerId_, slicerAddress) = sliceCore.slice(
       SliceParams(
         payees,
         slicesToMint, /// 100% superowner slices
@@ -542,9 +543,7 @@ contract BluntDelegate is IBluntDelegate {
       )
     );
 
-    // TODO: @jacopo Return these directly from `slice`
-    slicerId = uint160(sliceCore.supply() - 1);
-    slicerAddress = payable(sliceCore.slicers(slicerId));
+    slicerId = uint160(slicerId_);
   }
 
   /**
