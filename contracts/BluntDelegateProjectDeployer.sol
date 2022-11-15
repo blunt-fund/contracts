@@ -14,8 +14,19 @@ contract BluntDelegateProjectDeployer is
   JBOperatable
 {
   //*********************************************************************//
+  // --------------------------- custom errors ------------------------- //
+  //*********************************************************************//
+  error INVALID_TOKEN_ISSUANCE();
+
+  //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
   //************************************* ********************************//
+
+  /**
+    @notice
+    Ratio between amount of tokens contributed and slices minted
+  */
+  uint64 public constant TOKENS_PER_SLICE = 1e15; // 1 token every 0.001 ETH
 
   /** 
     @notice
@@ -61,6 +72,11 @@ contract BluntDelegateProjectDeployer is
 
     // Set the project to use the data source for it's pay function.
     _launchProjectData.metadata.useDataSourceForPay = true;
+
+    // Require weight to be non zero to allow for redemptions, and a multiple of TOKENS_PER_SLICE
+    if (
+      _launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_SLICE != 0
+    ) revert INVALID_TOKEN_ISSUANCE();
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);

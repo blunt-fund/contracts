@@ -156,7 +156,7 @@ contract BluntDelegate is
       IJBPayDelegate delegate
     )
   {
-    // Forward the recieved weight and memo, and use this contract as a pay delegate.
+    /// Forward the recieved weight and memo, and use this contract as a pay delegate.
     return (_data.weight, _data.memo, IJBPayDelegate(address(this)));
   }
 
@@ -239,23 +239,23 @@ contract BluntDelegate is
     @param _data The Juicebox standard project payment data.
   */
   function didPay(JBDidPayData calldata _data) external virtual override {
-    // Make sure the caller is a terminal of the project, and the call is being made on behalf of an interaction with the correct project.
+    /// Make sure the caller is a terminal of the project, and the call is being made on behalf of an interaction with the correct project.
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    // Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
+    /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
     if (_data.amount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
-    // Update totalContributions and contributions with amount paid
+    /// Update totalContributions and contributions with amount paid
     totalContributions += _data.amount.value;
 
-    // Make sure totalContributions is below `hardCap` and `MAX_CONTRIBUTION`
+    /// Make sure totalContributions is below `hardCap` and `MAX_CONTRIBUTION`
     uint256 cap = hardCap != 0 ? hardCap : MAX_CONTRIBUTION;
     if (totalContributions > cap) revert CAP_REACHED();
 
-    // Cannot overflow as totalContributions would overflow first
+    /// Cannot overflow as totalContributions would overflow first
     unchecked {
       contributions[_data.beneficiary] += _data.amount.value;
     }
@@ -273,20 +273,23 @@ contract BluntDelegate is
     @param _data The Juicebox standard project payment data.
   */
   function didRedeem(JBDidRedeemData calldata _data) external virtual override {
-    // Make sure the caller is a terminal of the project, and the call is being made on behalf of an interaction with the correct project.
+    /// Make sure the caller is a terminal of the project, and the call is being made on behalf of an interaction with the correct project.
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    // Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
+    /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
     if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
-    // Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
+    // TODO: @jango I don't think it's worth it, but can we disable token transfers while the round is active?
+    /// @dev Reverts for underflow if beneficiary has received tokens via transfer
+    contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+
+    /// Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
     unchecked {
-      // Update totalContributions and contributions with amount redeemed
+      /// Update totalContributions with amount redeemed
       totalContributions -= _data.reclaimedAmount.value;
-      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
     }
   }
 
@@ -303,28 +306,28 @@ contract BluntDelegate is
     if (fundingCycleStore.currentOf(projectId).number == fundingCycleRound)
       revert FUNDING_CYCLE_NOT_ENDED();
 
-    // TODO: Add this in requirements for closing funding cycle
+    /// TODO: Add this in requirements for closing funding cycle
     if (target != 0) {
       if (totalContributions < target) revert TARGET_NOT_REACHED();
     }
 
-    // TODO: @jango Issue ERC20 and get address
+    /// TODO: @jango Issue ERC20 and get address
     address currency;
 
     /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
     uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
 
-    // Add references for sliceParams
+    /// Add references for sliceParams
     Payee[] memory payees = new Payee[](1);
     payees[0] = Payee(address(this), slicesToMint, true);
     address[] memory acceptedCurrencies = new address[](1);
     acceptedCurrencies[0] = currency;
 
-    // Create slicer and mint all slices to this address
+    /// Create slicer and mint all slices to this address
     sliceCore.slice(
       SliceParams(
         payees,
-        slicesToMint, // 100% superowner slices
+        slicesToMint, /// 100% superowner slices
         acceptedCurrencies,
         releaseTimelock,
         transferTimelock,
@@ -347,17 +350,17 @@ contract BluntDelegate is
   function transferUnclaimedSlicesTo(address[] calldata beneficiaries) external override {
     if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
 
-    // Add reference for slices amounts of each beneficiary
+    /// Add reference for slices amounts of each beneficiary
     uint256[] memory amounts = new uint256[](beneficiaries.length);
 
     uint256 contribution;
-    // Loop over beneficiaries
+    /// Loop over beneficiaries
     for (uint256 i; i < beneficiaries.length; ) {
       contribution = contributions[beneficiaries[i]];
       if (contribution != 0) {
-        // Calculate slices to claim and set the beneficiary amount in amounts array
+        /// Calculate slices to claim and set the beneficiary amount in amounts array
         amounts[i] = contribution / TOKENS_PER_SLICE;
-        // Update storage
+        /// Update storage
         contributions[beneficiaries[i]] = 0;
       }
       unchecked {
@@ -365,7 +368,7 @@ contract BluntDelegate is
       }
     }
 
-    // Send slices to beneficiaries along with any earnings
+    /// Send slices to beneficiaries along with any earnings
     sliceCore.slicerBatchTransfer(address(this), beneficiaries, slicerId, amounts, false);
   }
 
@@ -379,14 +382,14 @@ contract BluntDelegate is
   function claimSlices() external override {
     if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
 
-    // Add reference to contributions for msg.sender
+    /// Add reference to contributions for msg.sender
     uint256 contribution = contributions[msg.sender];
 
     if (contribution != 0) {
-      // Update storage
+      /// Update storage
       contributions[msg.sender] = 0;
 
-      // Send slices to beneficiary along with a proportional amount of tokens accrued
+      /// Send slices to beneficiary along with a proportional amount of tokens accrued
       sliceCore.safeTransferFromUnreleased(
         address(this),
         msg.sender,
@@ -436,11 +439,11 @@ contract BluntDelegate is
   }
 }
 
-// Note
-// Slices have a max of `type(uint32).max`, so it's necessary to convert between value paid and slices, either during pay / redeem or during slice issuance.
+/// Note
+/// Slices have a max of `type(uint32).max`, so it's necessary to convert between value paid and slices, either during pay / redeem or during slice issuance.
 
-// - Storing the VALUE sent on pay / redeem, and calculate slices during issuance, allows to have the most efficient + seamless logic. However consider an extreme scenario where `totalContributions` > 0 but all contributions are below `TOKENS_PER_SLICE`. This would result in no slices being minted even though the treasury has received money. The problem is present whenever the amount paid doesn't exactly correspond that which should've been contributed to get a number of slices, either in excess or in defect.
-// - Designing so that slices are calculated during pay / redeem increases complexity and costs significantly, while adding a bunch of foot guns. I considered going down that road but realised it introduced other issues.
-// - Proposed solution uses the former logic, but enforces `(_data.amount.value % TOKENS_PER_SLICE == 0)` so that there is no payment in excess. This will also be enforced on the frontend, but might require JB frontend to eventually adapt as well
+/// - Storing the VALUE sent on pay / redeem, and calculate slices during issuance, allows to have the most efficient + seamless logic. However consider an extreme scenario where `totalContributions` > 0 but all contributions are below `TOKENS_PER_SLICE`. This would result in no slices being minted even though the treasury has received money. The problem is present whenever the amount paid doesn't exactly correspond that which should've been contributed to get a number of slices, either in excess or in defect.
+/// - Designing so that slices are calculated during pay / redeem increases complexity and costs significantly, while adding a bunch of foot guns. I considered going down that road but realised it introduced other issues.
+/// - Proposed solution uses the former logic, but enforces `(_data.amount.value % TOKENS_PER_SLICE == 0)` so that there is no payment in excess. This will also be enforced on the frontend, but might require JB frontend to eventually adapt as well
 
-// TODO: Add other missing params from interface
+/// TODO: Add other missing params from interface
