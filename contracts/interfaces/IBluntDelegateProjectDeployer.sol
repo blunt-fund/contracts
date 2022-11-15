@@ -11,7 +11,6 @@ interface IBluntDelegateProjectDeployer {
   function controller() external view returns (IJBController);
 
   function launchProjectFor(
-    address _owner,
     DeployBluntDelegateData memory _deployBluntDelegateData,
     JBLaunchProjectData memory _launchProjectData
   ) external returns (uint256 projectId);

@@ -62,6 +62,17 @@ contract BluntDelegate is
 
   IJBFundingCycleStore public immutable fundingCycleStore;
 
+  /**
+    @notice
+    SliceCore instance
+  */
+  ISliceCore public immutable sliceCore;
+
+  /** 
+    @notice
+    The owner of the project once the blunt round is concluded successfully.
+  */
+  address public immutable projectOwner;
   /** 
     @notice
     The minimum amount of contributions while this data source is in effect.
@@ -91,12 +102,6 @@ contract BluntDelegate is
     @dev uint40 for bit packing
   */
   uint40 public immutable fundingCycleRound;
-
-  /**
-    @notice
-    SliceCore instance
-  */
-  ISliceCore public immutable sliceCore;
 
   //*********************************************************************//
   // ---------------- public mutable stored properties ----------------- //
@@ -205,6 +210,7 @@ contract BluntDelegate is
     tokenStore = _deployBluntDelegateData.tokenStore;
     fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
     sliceCore = _deployBluntDelegateData.sliceCore;
+    projectOwner = _deployBluntDelegateData.projectOwner;
     hardCap = _deployBluntDelegateData.hardCap;
     target = _deployBluntDelegateData.target;
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;

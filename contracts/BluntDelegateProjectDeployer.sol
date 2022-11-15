@@ -41,14 +41,12 @@ contract BluntDelegateProjectDeployer is
     @notice 
     Launches a new project with a tiered NFT rewards data source attached.
 
-    @param _owner The address to set as the owner of the project. The project ERC-721 will be owned by this address.
     @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a tiered limited NFT rewward data source.
     @param _launchProjectData Data necessary to fulfill the transaction to launch a project.
 
     @return projectId The ID of the newly configured project.
   */
   function launchProjectFor(
-    address _owner,
     DeployBluntDelegateData memory _deployBluntDelegateData,
     JBLaunchProjectData memory _launchProjectData
   ) external override returns (uint256 projectId) {
@@ -65,7 +63,7 @@ contract BluntDelegateProjectDeployer is
     _launchProjectData.metadata.useDataSourceForPay = true;
 
     // Launch the project.
-    _launchProjectFor(_owner, _launchProjectData);
+    _launchProjectFor(_delegateAddress, _launchProjectData);
   }
 
   //*********************************************************************//

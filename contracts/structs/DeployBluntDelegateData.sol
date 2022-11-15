@@ -16,6 +16,7 @@ struct DeployBluntDelegateData {
   IJBTokenStore tokenStore;
   IJBFundingCycleStore fundingCycleStore;
   ISliceCore sliceCore;
+  address projectOwner;
   uint88 hardCap;
   uint88 target;
   uint40 releaseTimelock;
