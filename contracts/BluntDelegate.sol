@@ -30,7 +30,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Ratio between amount of tokens contributed and slices minted
   */
-  uint64 public constant TOKENS_PER_SLICE = 1e15; // 1 slice every 0.001 ETH
+  uint64 public constant TOKENS_PER_SLICE = 1e15; /// 1 slice every 0.001 ETH
 
   /**
     @notice
@@ -106,7 +106,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Project metadata splits to be enabled when a successful round is closed.
   */
-  JBGroupedSplits[] public afterRoundSplits;
+  JBSplit[] public afterRoundSplits;
   /** 
     @notice
     Name of the token to be issued in case of a successful round
@@ -241,7 +241,7 @@ contract BluntDelegate is IBluntDelegate {
       address,
       uint40,
       uint16,
-      JBGroupedSplits[] memory,
+      JBSplit[] memory,
       string memory,
       string memory,
       bool,
@@ -287,9 +287,17 @@ contract BluntDelegate is IBluntDelegate {
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
     transferTimelock = _deployBluntDelegateData.transferTimelock;
     afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
-    afterRoundSplits = _deployBluntDelegateData.afterRoundSplits;
     tokenName = _deployBluntDelegateData.tokenName;
     tokenSymbol = _deployBluntDelegateData.tokenSymbol;
+
+    /// Store afterRoundSplits
+    for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
+      afterRoundSplits.push(_deployBluntDelegateData.afterRoundSplits[i]);
+
+      unchecked {
+        ++i;
+      }
+    }
 
     /// Store current funding cycle
     fundingCycleRound = uint40(
@@ -437,14 +445,14 @@ contract BluntDelegate is IBluntDelegate {
     Configure next FC to have 0 duration in order for `closeRound` to have immediate effect
   */
   function queueNextPhase() external override {
-    // Get current FC data and metadata
+    /// Get current FC data and metadata
     (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = controller
       .currentFundingCycleOf(projectId);
 
-    // Revert if current funding cycle has no duration set
+    /// Revert if current funding cycle has no duration set
     if (fundingCycle.duration != 0) revert ALREADY_QUEUED();
 
-    // Set JBFundingCycleData with duration 0 and null params
+    /// Set JBFundingCycleData with duration 0 and null params
     JBFundingCycleData memory data = JBFundingCycleData({
       duration: 0,
       weight: 0,
@@ -452,7 +460,7 @@ contract BluntDelegate is IBluntDelegate {
       ballot: IJBFundingCycleBallot(address(0))
     });
 
-    // Configure next FC
+    /// Configure next FC
     controller.reconfigureFundingCyclesOf(
       projectId,
       data,
@@ -475,57 +483,61 @@ contract BluntDelegate is IBluntDelegate {
     Can only be called once by the appointed project owner.
   */
   function closeRound() external override {
-    // Revert if not called by projectOwner
+    /// Revert if not called by projectOwner
     if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
 
-    // Revert if not called by projectOwner
+    /// Revert if not called by projectOwner
     if (isRoundClosed) revert ROUND_CLOSED();
     isRoundClosed = true;
 
-    // If target has been reached
+    /// If target has been reached
     if (totalContributions > target) {
-      // Get current JBFundingCycleMetadata
+      /// Get current JBFundingCycleMetadata
       (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
-      // Edit current metadata to:
-      // Set reservedRate from `afterRoundReservedRate`
+      /// Edit current metadata to:
+      /// Set reservedRate from `afterRoundReservedRate`
       metadata.reservedRate = afterRoundReservedRate;
-      // Disable redemptions
+      /// Disable redemptions
       delete metadata.redemptionRate;
-      // Enable transfers
+      /// Enable transfers
       delete metadata.global.pauseTransfers;
-      // Pause pay, to allow projectOwner to reconfig as needed before re-enabling
+      /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
       metadata.pausePay = true;
-      // Detach dataSource
+      /// Detach dataSource
       delete metadata.useDataSourceForPay;
       delete metadata.useDataSourceForRedeem;
       delete metadata.dataSource;
 
-      // Set JBFundingCycleData
+      /// Set JBFundingCycleData
       JBFundingCycleData memory data = JBFundingCycleData({
         duration: 0,
-        weight: 1e24, // token issuance 1M
+        weight: 1e24, /// token issuance 1M
         discountRate: 0,
         ballot: IJBFundingCycleBallot(address(0))
       });
 
-      // Create slicer, mint slices and issue project token
+      /// Create slicer, mint slices and issue project token
       address slicerAddress = _mintSlicesToDelegate();
 
-      // If first split beneficiary is unset, it's reserved to the slicer
-      if (afterRoundSplits[0].splits[0].beneficiary == address(0)) {
-        // Set up slicer split
-        afterRoundSplits[0].splits[0].beneficiary = payable(slicerAddress);
-        afterRoundSplits[0].splits[0].preferClaimed = true;
+      /// If first split beneficiary is unset, it's reserved to the slicer
+      if (afterRoundSplits[0].beneficiary == address(0)) {
+        /// Update slicer split
+        afterRoundSplits[0].beneficiary = payable(slicerAddress);
+        afterRoundSplits[0].preferClaimed = true;
       }
 
-      // Reconfigure Funding Cycle
+      /// Format splits
+      JBGroupedSplits[] memory splits = new JBGroupedSplits[](1);
+      splits[0] = JBGroupedSplits(2, afterRoundSplits);
+
+      /// Reconfigure Funding Cycle
       controller.reconfigureFundingCyclesOf(
         projectId,
         data,
         metadata,
         0,
-        afterRoundSplits,
+        splits,
         new JBFundAccessConstraints[](0),
         ''
       );

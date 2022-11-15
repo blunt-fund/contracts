@@ -26,7 +26,7 @@ interface IBluntDelegate is
       address projectOwner,
       uint40 fundingCycleRound,
       uint16 afterRoundReservedRate,
-      JBGroupedSplits[] memory afterRoundSplits,
+      JBSplit[] memory afterRoundSplits,
       string memory tokenName,
       string memory tokenSymbol,
       bool isRoundClosed,

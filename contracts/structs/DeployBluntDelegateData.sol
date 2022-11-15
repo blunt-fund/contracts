@@ -21,7 +21,7 @@ struct DeployBluntDelegateData {
   uint40 releaseTimelock;
   uint40 transferTimelock;
   uint16 afterRoundReservedRate;
-  JBGroupedSplits[] afterRoundSplits;
+  JBSplit[] afterRoundSplits;
   string tokenName;
   string tokenSymbol;
 }
