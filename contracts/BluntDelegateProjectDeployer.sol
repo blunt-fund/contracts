@@ -76,8 +76,7 @@ contract BluntDelegateProjectDeployer is
     // Disable token transfers
     _launchProjectData.metadata.global.pauseTransfers = true;
 
-    // Require weight to be non zero to allow for redemptions,
-    // and a multiple of `TOKENS_PER_SLICE` TODO: Might be unnecessary
+    // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_SLICE`
     if (
       _launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_SLICE != 0
     ) revert INVALID_TOKEN_ISSUANCE();
