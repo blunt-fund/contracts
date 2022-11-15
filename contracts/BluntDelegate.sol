@@ -20,6 +20,7 @@ contract BluntDelegate is IBluntDelegate {
   error VALUE_NOT_EXACT();
   error ROUND_CLOSED();
   error NOT_PROJECT_OWNER();
+  error ALREADY_QUEUED();
 
   //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
@@ -431,14 +432,39 @@ contract BluntDelegate is IBluntDelegate {
     }
   }
 
-  // function queueNextPhase() external {
-  //   // If blunt round has a duration set
-  //   if (_launchProjectData.data.duration != 0) {
-  //     // TODO: Configure FC after blunt round to have 0 duration
-  //     // in order for `closeRound` to have immediate effect
-  //   }
-  // }
+  /**
+    @notice 
+    Configure next FC to have 0 duration in order for `closeRound` to have immediate effect
+  */
+  function queueNextPhase() external override {
+    // Get current FC data and metadata
+    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = controller
+      .currentFundingCycleOf(projectId);
 
+    // Revert if current funding cycle has no duration set
+    if (fundingCycle.duration != 0) revert ALREADY_QUEUED();
+
+    // Set JBFundingCycleData with duration 0 and null params
+    JBFundingCycleData memory data = JBFundingCycleData({
+      duration: 0,
+      weight: 0,
+      discountRate: 0,
+      ballot: IJBFundingCycleBallot(address(0))
+    });
+
+    // Configure next FC
+    controller.reconfigureFundingCyclesOf(
+      projectId,
+      data,
+      metadata,
+      0,
+      new JBGroupedSplits[](0),
+      new JBFundAccessConstraints[](0),
+      ''
+    );
+  }
+
+  /// TODO: @jango Check all of this makes sense
   /**
     @notice 
     Close blunt round if target has been reached. 
@@ -448,7 +474,6 @@ contract BluntDelegate is IBluntDelegate {
     @dev 
     Can only be called once by the appointed project owner.
   */
-  // TODO: @jango Check all of this makes sense
   function closeRound() external override {
     // Revert if not called by projectOwner
     if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
