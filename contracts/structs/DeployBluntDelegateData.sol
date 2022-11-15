@@ -2,23 +2,26 @@
 pragma solidity 0.8.17;
 
 import '../interfaces/ISliceCore.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBDirectory.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBTokenStore.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBFundingCycleStore.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBDirectory.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBTokenStore.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBFundingCycleStore.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/structs/JBGroupedSplits.sol';
 
-/**
-  @member directory The directory of terminals and controllers for projects.
-  @member tokenStore The token store.
-  @memver hardCap The hard cap of project tokens that can be issued.
-*/
 struct DeployBluntDelegateData {
   IJBDirectory directory;
   IJBTokenStore tokenStore;
   IJBFundingCycleStore fundingCycleStore;
+  IJBProjects projects;
+  IJBController controller;
   ISliceCore sliceCore;
   address projectOwner;
   uint88 hardCap;
   uint88 target;
   uint40 releaseTimelock;
   uint40 transferTimelock;
+  uint16 afterRoundReservedRate;
+  JBGroupedSplits[] afterRoundSplits;
+  string tokenName;
+  string tokenSymbol;
 }

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import '@jbx-protocol/contracts-v2/contracts/abstract/JBOperatable.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBController.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBProjects.sol';
-import '@jbx-protocol/contracts-v2/contracts/libraries/JBOperations.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/abstract/JBOperatable.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 import './BluntDelegateDeployer.sol';
 
@@ -50,9 +49,9 @@ contract BluntDelegateProjectDeployer is
 
   /** 
     @notice 
-    Launches a new project with a tiered NFT rewards data source attached.
+    Launches a new project with a blunt round data source attached.
 
-    @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a tiered limited NFT rewward data source.
+    @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a blunt round data source.
     @param _launchProjectData Data necessary to fulfill the transaction to launch a project.
 
     @return projectId The ID of the newly configured project.
@@ -69,11 +68,16 @@ contract BluntDelegateProjectDeployer is
 
     // Set the data source address as the data source of the provided metadata.
     _launchProjectData.metadata.dataSource = _delegateAddress;
-
-    // Set the project to use the data source for it's pay function.
+    // Set the project to use the data source for its pay and redeem functions.
     _launchProjectData.metadata.useDataSourceForPay = true;
+    _launchProjectData.metadata.useDataSourceForRedeem = true;
+    // Enable full redemptions
+    _launchProjectData.metadata.redemptionRate = JBConstants.MAX_REDEMPTION_RATE;
+    // Disable token transfers
+    _launchProjectData.metadata.global.pauseTransfers = true;
 
-    // Require weight to be non zero to allow for redemptions, and a multiple of TOKENS_PER_SLICE
+    // Require weight to be non zero to allow for redemptions,
+    // and a multiple of `TOKENS_PER_SLICE` TODO: Might be unnecessary
     if (
       _launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_SLICE != 0
     ) revert INVALID_TOKEN_ISSUANCE();
@@ -109,19 +113,3 @@ contract BluntDelegateProjectDeployer is
     );
   }
 }
-
-/** TODO:
-Handle additional params and logic
-
-PARAMS
-- Round token allocation, for next FC
-- Reserved rate distribution, for next FC
-- Round duration, next FC length
-- Project token symbol and issuance
-  - Can this be increased arbitrarily for subsequent FC? Or can issuance only be reduced with discount rate
-
-LOGIC
-- Where to add closeRound requirements?
-- `issueSlices`: Add requirement, FC related to blunt round must have been closed
-- `issueSlices`: Handle issuance of Project ERC20
-*/

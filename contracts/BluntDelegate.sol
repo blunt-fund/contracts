@@ -3,33 +3,22 @@ pragma solidity 0.8.17;
 
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegate.sol';
-import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
-import '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBDirectory.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBTokenStore.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBFundingCycleDataSource.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBPayDelegate.sol';
-import '@jbx-protocol/contracts-v2/contracts/interfaces/IJBRedemptionDelegate.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 
-contract BluntDelegate is
-  IBluntDelegate,
-  IJBFundingCycleDataSource,
-  IJBPayDelegate,
-  IJBRedemptionDelegate,
-  IERC1155Receiver,
-  IERC721Receiver
-{
+/// @title Blunt Round data source for Juicebox projects, based on Slice protocol.
+/// @author jacopo <jacopo@slice.so>
+/// @author jango <jango.eth>
+/// @notice Rewards participants of a round with a part of reserved rate, using a slicer for distribution.
+contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
   error INVALID_PAYMENT_EVENT();
-  error FUNDING_CYCLE_NOT_ENDED();
   error CAP_REACHED();
-  error TARGET_NOT_REACHED();
-  error SLICER_ALREADY_CREATED();
   error SLICER_NOT_YET_CREATED();
   error VALUE_NOT_EXACT();
+  error ROUND_CLOSED();
   error NOT_PROJECT_OWNER();
 
   //*********************************************************************//
@@ -50,7 +39,7 @@ contract BluntDelegate is
 
   /**
     @notice
-    The ID of the project this NFT should be distributed for.
+    The ID of the project.
   */
   uint256 public immutable projectId;
 
@@ -64,11 +53,15 @@ contract BluntDelegate is
 
   IJBFundingCycleStore public immutable fundingCycleStore;
 
+  IJBProjects public immutable projects;
+
+  IJBController public immutable controller;
+
   /**
     @notice
     SliceCore instance
   */
-  ISliceCore public immutable sliceCore;
+  ISliceCore public immutable sliceCore; 
 
   /** 
     @notice
@@ -97,13 +90,32 @@ contract BluntDelegate is
     The timestamp when the slicer becomes transferable.
   */
   uint40 public immutable transferTimelock;
-
   /** 
     @notice
     The number of the funding cycle related to the blunt round.
     @dev uint40 for bit packing
   */
   uint40 public immutable fundingCycleRound;
+  /** 
+    @notice
+    Reserved rate to be set in case of a successful round
+  */
+  uint16 public immutable afterRoundReservedRate;
+  /** 
+    @notice
+    Project metadata splits to be enabled when a successful round is closed.
+  */
+  JBGroupedSplits[] public afterRoundSplits;
+  /** 
+    @notice
+    Name of the token to be issued in case of a successful round
+  */
+  string public tokenName;
+  /** 
+    @notice
+    Symbol of the token to be issued in case of a successful round
+  */
+  string public tokenSymbol;
 
   //*********************************************************************//
   // ---------------- public mutable stored properties ----------------- //
@@ -113,13 +125,7 @@ contract BluntDelegate is
     @notice
     Total contributions received during round
   */
-  uint256 public totalContributions;
-
-  /**
-    @notice
-    Mapping from beneficiary to contributions
-  */
-  mapping(address => uint256) public contributions;
+  uint88 public totalContributions;
 
   /**
     @notice
@@ -127,7 +133,19 @@ contract BluntDelegate is
     
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
   */
-  uint256 public slicerId;
+  uint160 public slicerId;
+
+  /**
+    @notice
+    True if the round has been closed 
+  */
+  bool public isRoundClosed;
+
+  /**
+    @notice
+    Mapping from beneficiary to contributions
+  */
+  mapping(address => uint256) public contributions;
 
   //*********************************************************************//
   // ------------------------- external views -------------------------- //
@@ -144,7 +162,7 @@ contract BluntDelegate is
 
     @return weight The weight that tokens should get minted in accordance to 
     @return memo The memo that should be forwarded to the event.
-    @return delegate A delegate to call once the payment has taken place.
+    @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
   */
   function payParams(JBPayParamsData calldata _data)
     external
@@ -153,11 +171,14 @@ contract BluntDelegate is
     returns (
       uint256 weight,
       string memory memo,
-      IJBPayDelegate delegate
+      JBPayDelegateAllocation[] memory delegateAllocations
     )
   {
+    JBPayDelegateAllocation[] memory allocations = new JBPayDelegateAllocation[](1);
+    allocations[0] = JBPayDelegateAllocation(IJBPayDelegate(address(this)), 0);
+
     /// Forward the recieved weight and memo, and use this contract as a pay delegate.
-    return (_data.weight, _data.memo, IJBPayDelegate(address(this)));
+    return (_data.weight, _data.memo, allocations);
   }
 
   /**
@@ -168,7 +189,7 @@ contract BluntDelegate is
 
     @return reclaimAmount The amount that should be reclaimed from the treasury.
     @return memo The memo that should be forwarded to the event.
-    @return delegate A delegate to call once the redemption has taken place.
+    @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
   */
   function redeemParams(JBRedeemParamsData calldata _data)
     external
@@ -177,10 +198,14 @@ contract BluntDelegate is
     returns (
       uint256 reclaimAmount,
       string memory memo,
-      IJBRedemptionDelegate delegate
+      JBRedemptionDelegateAllocation[] memory delegateAllocations
     )
   {
-    return (_data.reclaimAmount.value, _data.memo, IJBRedemptionDelegate(address(this)));
+    JBRedemptionDelegateAllocation[] memory allocations = new JBRedemptionDelegateAllocation[](1);
+    allocations[0] = JBRedemptionDelegateAllocation(IJBRedemptionDelegate(address(this)), 0);
+
+    /// Forward the recieved weight and memo, and use this contract as a redeem delegate.
+    return (_data.reclaimAmount.value, _data.memo, allocations);
   }
 
   /**
@@ -211,13 +236,20 @@ contract BluntDelegate is
     directory = _deployBluntDelegateData.directory;
     tokenStore = _deployBluntDelegateData.tokenStore;
     fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
+    projects = _deployBluntDelegateData.projects;
+    controller = _deployBluntDelegateData.controller;
     sliceCore = _deployBluntDelegateData.sliceCore;
     projectOwner = _deployBluntDelegateData.projectOwner;
     hardCap = _deployBluntDelegateData.hardCap;
     target = _deployBluntDelegateData.target;
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
     transferTimelock = _deployBluntDelegateData.transferTimelock;
+    afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
+    afterRoundSplits = _deployBluntDelegateData.afterRoundSplits;
+    tokenName = _deployBluntDelegateData.tokenName;
+    tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
+    /// Store current funding cycle
     fundingCycleRound = uint40(
       _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number
     );
@@ -238,18 +270,25 @@ contract BluntDelegate is
 
     @param _data The Juicebox standard project payment data.
   */
-  function didPay(JBDidPayData calldata _data) external virtual override {
-    /// Make sure the caller is a terminal of the project, and the call is being made on behalf of an interaction with the correct project.
+  function didPay(JBDidPayData calldata _data) external payable virtual override {
+    /// Require that
+    /// - The caller is a terminal of the project
+    /// - The call is being made on behalf of an interaction with the correct project
+    /// - The funding cycle related to the round hasn't ended
+    /// - The blunt round hasn't been closed
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
-      _data.projectId != projectId
+      _data.projectId != projectId ||
+      fundingCycleStore.currentOf(projectId).number != fundingCycleRound ||
+      isRoundClosed
     ) revert INVALID_PAYMENT_EVENT();
 
     /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
     if (_data.amount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
+    if (_data.amount.value > type(uint88).max) revert CAP_REACHED();
 
     /// Update totalContributions and contributions with amount paid
-    totalContributions += _data.amount.value;
+    totalContributions += uint88(_data.amount.value);
 
     /// Make sure totalContributions is below `hardCap` and `MAX_CONTRIBUTION`
     uint256 cap = hardCap != 0 ? hardCap : MAX_CONTRIBUTION;
@@ -272,8 +311,10 @@ contract BluntDelegate is
 
     @param _data The Juicebox standard project payment data.
   */
-  function didRedeem(JBDidRedeemData calldata _data) external virtual override {
-    /// Make sure the caller is a terminal of the project, and the call is being made on behalf of an interaction with the correct project.
+  function didRedeem(JBDidRedeemData calldata _data) external payable virtual override {
+    /// Require that
+    /// - The caller is a terminal of the project
+    /// - The call is being made on behalf of an interaction with the correct project
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
       _data.projectId != projectId
@@ -282,62 +323,13 @@ contract BluntDelegate is
     /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
     if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
-    // TODO: @jango I don't think it's worth it, but can we disable token transfers while the round is active?
-    /// @dev Reverts for underflow if beneficiary has received tokens via transfer
-    contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
-
-    /// Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
+    /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
+    /// contributions can be inside unchecked as token transfers are disabled during round
     unchecked {
-      /// Update totalContributions with amount redeemed
-      totalContributions -= _data.reclaimedAmount.value;
+      /// Update totalContributions and contributions with amount redeemed
+      totalContributions -= uint88(_data.reclaimedAmount.value);
+      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
     }
-  }
-
-  /**
-    @notice 
-    Creates slicer and issues `slicesToMint` to this contract.
-
-    @dev 
-    This function will revert if the funding cycle related to the blunt round hasn't ended or if the slicer has already been created.
-  */
-  function issueSlices() external override {
-    if (slicerId != 0) revert SLICER_ALREADY_CREATED();
-
-    if (fundingCycleStore.currentOf(projectId).number == fundingCycleRound)
-      revert FUNDING_CYCLE_NOT_ENDED();
-
-    /// TODO: Add this in requirements for closing funding cycle
-    if (target != 0) {
-      if (totalContributions < target) revert TARGET_NOT_REACHED();
-    }
-
-    /// TODO: @jango Issue ERC20 and get address
-    address currency;
-
-    /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
-    uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
-
-    /// Add references for sliceParams
-    Payee[] memory payees = new Payee[](1);
-    payees[0] = Payee(address(this), slicesToMint, true);
-    address[] memory acceptedCurrencies = new address[](1);
-    acceptedCurrencies[0] = currency;
-
-    /// Create slicer and mint all slices to this address
-    sliceCore.slice(
-      SliceParams(
-        payees,
-        slicesToMint, /// 100% superowner slices
-        acceptedCurrencies,
-        releaseTimelock,
-        transferTimelock,
-        address(0),
-        0,
-        0
-      )
-    );
-
-    slicerId = sliceCore.supply() - 1;
   }
 
   /**
@@ -348,8 +340,6 @@ contract BluntDelegate is
     This function will revert if the slicer hasn't been created yet.
   */
   function transferUnclaimedSlicesTo(address[] calldata beneficiaries) external override {
-    if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
-
     /// Add reference for slices amounts of each beneficiary
     uint256[] memory amounts = new uint256[](beneficiaries.length);
 
@@ -400,6 +390,122 @@ contract BluntDelegate is
     }
   }
 
+  // function queueNextPhase() external {
+  //   // If blunt round has a duration set
+  //   if (_launchProjectData.data.duration != 0) {
+  //     // TODO: Configure FC after blunt round to have 0 duration
+  //     // in order for `closeRound` to have immediate effect
+  //   }
+  // }
+
+  /**
+    @notice 
+    Close blunt round if target has been reached. 
+    Consists in minting slices to blunt delegate, reconfiguring next FC and transferring project NFT to projectOwner.
+    If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
+
+    @dev 
+    Can only be called once by the appointed project owner.
+  */
+  // TODO: @jango Check all of this makes sense
+  function closeRound() external override {
+    // Revert if not called by projectOwner
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+
+    // Revert if not called by projectOwner
+    if (isRoundClosed) revert ROUND_CLOSED();
+    isRoundClosed = true;
+
+    // If target has been reached
+    if (totalContributions > target) {
+      // Get current JBFundingCycleMetadata
+      (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
+
+      // Edit current metadata to:
+      // Set reservedRate from `afterRoundReservedRate`
+      metadata.reservedRate = afterRoundReservedRate;
+      // Disable redemptions
+      delete metadata.redemptionRate;
+      // Enable transfers
+      delete metadata.global.pauseTransfers;
+      // Pause pay, to allow projectOwner to reconfig as needed before re-enabling
+      metadata.pausePay = true;
+      // Detach dataSource
+      delete metadata.useDataSourceForPay;
+      delete metadata.useDataSourceForRedeem;
+      delete metadata.dataSource;
+
+      // Set JBFundingCycleData
+      JBFundingCycleData memory data = JBFundingCycleData({
+        duration: 0,  
+        weight: 1e24, // token issuance 1M
+        discountRate: 0,
+        ballot: IJBFundingCycleBallot(address(0)) 
+      });
+
+      // Create slicer, mint slices and issue project token
+      address payable slicerAddress = _mintSlicesToDelegate();
+
+      // If first split beneficiary is unset, it's reserved to the slicer
+      if (afterRoundSplits[0].splits[0].beneficiary == address(0)) {
+        // Set up slicer split
+        afterRoundSplits[0].splits[0].beneficiary = slicerAddress;
+        afterRoundSplits[0].splits[0].preferClaimed = true;
+      }
+
+      // Reconfigure Funding Cycle
+      controller.reconfigureFundingCyclesOf(
+        projectId,
+        data,
+        metadata,
+        0,
+        afterRoundSplits,
+        new JBFundAccessConstraints[](0),
+        ''
+      );
+
+      /// Transfer project ownership to projectOwner
+      projects.safeTransferFrom(address(this), projectOwner, projectId);
+    }
+  }
+
+  /**
+    @notice 
+    Creates project's token, slicer and issues `slicesToMint` to this contract.
+  */
+  function _mintSlicesToDelegate() private returns(address payable slicerAddress) {
+    /// Issue ERC20 project token and get address
+    address currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
+
+    /// Calculate `slicesToMint`
+    /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
+    uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
+
+    /// Add references for sliceParams
+    Payee[] memory payees = new Payee[](1);
+    payees[0] = Payee(address(this), slicesToMint, true);
+    address[] memory acceptedCurrencies = new address[](1);
+    acceptedCurrencies[0] = currency;
+
+    /// Create slicer and mint all slices to this address
+    sliceCore.slice(
+      SliceParams(
+        payees,
+        slicesToMint, /// 100% superowner slices
+        acceptedCurrencies,
+        releaseTimelock,
+        transferTimelock,
+        address(0),
+        0,
+        0
+      )
+    );
+
+    // TODO: @jacopo Return these directly from `slice`
+    slicerId = uint160(sliceCore.supply() - 1);
+    slicerAddress = payable(sliceCore.slicers(slicerId));
+  }
+
   /**
    * @dev See `ERC1155Receiver`
    */
@@ -409,7 +515,8 @@ contract BluntDelegate is
     uint256,
     uint256,
     bytes memory
-  ) public override returns (bytes4) {
+  ) public view override returns (bytes4) {
+    if (msg.sender != address(sliceCore)) revert('NOT_SUPPORTED');
     return this.onERC1155Received.selector;
   }
 
@@ -422,7 +529,8 @@ contract BluntDelegate is
     uint256[] memory,
     uint256[] memory,
     bytes memory
-  ) public override returns (bytes4) {
+  ) public view override returns (bytes4) {
+    if (msg.sender != address(sliceCore)) revert('NOT_SUPPORTED');
     return this.onERC1155BatchReceived.selector;
   }
 
@@ -434,7 +542,7 @@ contract BluntDelegate is
     address,
     uint256,
     bytes calldata
-  ) public override returns (bytes4) {
+  ) public pure override returns (bytes4) {
     return this.onERC721Received.selector;
   }
 }
@@ -445,5 +553,3 @@ contract BluntDelegate is
 /// - Storing the VALUE sent on pay / redeem, and calculate slices during issuance, allows to have the most efficient + seamless logic. However consider an extreme scenario where `totalContributions` > 0 but all contributions are below `TOKENS_PER_SLICE`. This would result in no slices being minted even though the treasury has received money. The problem is present whenever the amount paid doesn't exactly correspond that which should've been contributed to get a number of slices, either in excess or in defect.
 /// - Designing so that slices are calculated during pay / redeem increases complexity and costs significantly, while adding a bunch of foot guns. I considered going down that road but realised it introduced other issues.
 /// - Proposed solution uses the former logic, but enforces `(_data.amount.value % TOKENS_PER_SLICE == 0)` so that there is no payment in excess. This will also be enforced on the frontend, but might require JB frontend to eventually adapt as well
-
-/// TODO: Add other missing params from interface
