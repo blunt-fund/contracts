@@ -390,6 +390,22 @@ contract BluntDelegate is IBluntDelegate {
     }
   }
 
+  function getRoundInfo()
+    external
+    view
+    override
+    returns (
+      uint256,
+      uint256,
+      uint256,
+      uint40,
+      uint40,
+      uint256
+    )
+  {
+    return (totalContributions, target, hardCap, releaseTimelock, transferTimelock, slicerId);
+  }
+
   // function queueNextPhase() external {
   //   // If blunt round has a duration set
   //   if (_launchProjectData.data.duration != 0) {
