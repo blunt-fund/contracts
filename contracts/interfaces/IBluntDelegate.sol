@@ -25,11 +25,18 @@ interface IBluntDelegate is
     external
     view
     returns (
-      uint256,
-      uint256,
-      uint256,
-      uint40,
-      uint40,
-      uint256
+      uint256 totalContributions,
+      uint256 target,
+      uint256 hardCap,
+      uint40 releaseTimelock,
+      uint40 transferTimelock,
+      address projectOwner,
+      uint40 fundingCycleRound,
+      uint16 afterRoundReservedRate,
+      JBGroupedSplits[] memory afterRoundSplits,
+      string memory tokenName,
+      string memory tokenSymbol,
+      bool isRoundClosed,
+      uint256 slicerId
     );
 }

@@ -61,7 +61,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     SliceCore instance
   */
-  ISliceCore public immutable sliceCore; 
+  ISliceCore public immutable sliceCore;
 
   /** 
     @notice
@@ -221,6 +221,47 @@ contract BluntDelegate is IBluntDelegate {
     return
       _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
       _interfaceId == type(IJBPayDelegate).interfaceId;
+  }
+
+  /**
+    @notice
+    Returns info related to round.
+  */
+  function getRoundInfo()
+    external
+    view
+    override
+    returns (
+      uint256,
+      uint256,
+      uint256,
+      uint40,
+      uint40,
+      address,
+      uint40,
+      uint16,
+      JBGroupedSplits[] memory,
+      string memory,
+      string memory,
+      bool,
+      uint256
+    )
+  {
+    return (
+      totalContributions,
+      target,
+      hardCap,
+      releaseTimelock,
+      transferTimelock,
+      projectOwner,
+      fundingCycleRound,
+      afterRoundReservedRate,
+      afterRoundSplits,
+      tokenName,
+      tokenSymbol,
+      isRoundClosed,
+      slicerId
+    );
   }
 
   //*********************************************************************//
@@ -390,22 +431,6 @@ contract BluntDelegate is IBluntDelegate {
     }
   }
 
-  function getRoundInfo()
-    external
-    view
-    override
-    returns (
-      uint256,
-      uint256,
-      uint256,
-      uint40,
-      uint40,
-      uint256
-    )
-  {
-    return (totalContributions, target, hardCap, releaseTimelock, transferTimelock, slicerId);
-  }
-
   // function queueNextPhase() external {
   //   // If blunt round has a duration set
   //   if (_launchProjectData.data.duration != 0) {
@@ -453,10 +478,10 @@ contract BluntDelegate is IBluntDelegate {
 
       // Set JBFundingCycleData
       JBFundingCycleData memory data = JBFundingCycleData({
-        duration: 0,  
+        duration: 0,
         weight: 1e24, // token issuance 1M
         discountRate: 0,
-        ballot: IJBFundingCycleBallot(address(0)) 
+        ballot: IJBFundingCycleBallot(address(0))
       });
 
       // Create slicer, mint slices and issue project token
@@ -489,7 +514,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice 
     Creates project's token, slicer and issues `slicesToMint` to this contract.
   */
-  function _mintSlicesToDelegate() private returns(address payable slicerAddress) {
+  function _mintSlicesToDelegate() private returns (address payable slicerAddress) {
     /// Issue ERC20 project token and get address
     address currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
 
