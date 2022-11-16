@@ -286,7 +286,7 @@ contract BluntDelegate is IBluntDelegate {
 
     /// Store current funding cycle
     fundingCycleRound = uint40(
-      _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number
+      _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number + 1
     );
   }
 
