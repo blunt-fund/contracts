@@ -39,13 +39,17 @@ import '@paulrberg/contracts/math/PRBMath.sol';
 import {DSTestPlus} from 'solmate/test/utils/DSTestPlus.sol';
 
 import './AccessJBLib.sol';
-
 import '../structs/JBPayDataSourceFundingCycleMetadata.sol'; 
+import '../../contracts/structs/DeployBluntDelegateData.sol';
+import '../../contracts/structs/JBLaunchProjectData.sol';
+import 'contracts/interfaces/ISliceCore.sol';
+import '../mocks/SliceCoreMock.sol';
+
 
 // Base contract for Juicebox system tests.
 //
 // Provides common functionality, such as deploying contracts on test setup.
-contract TestBaseWorkflow is DSTestPlus {
+contract BluntSetup is DSTestPlus {
   //*********************************************************************//
   // --------------------- internal stored properties ------------------- //
   //*********************************************************************//
@@ -53,6 +57,9 @@ contract TestBaseWorkflow is DSTestPlus {
   address internal _projectOwner = address(123);
   address internal _beneficiary = address(69420);
   address internal _caller = address(696969);
+
+  address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
+  ISliceCore internal _sliceCore;
 
   JBOperatorStore internal _jbOperatorStore;
   JBProjects internal _jbProjects;
@@ -90,7 +97,7 @@ contract TestBaseWorkflow is DSTestPlus {
     _jbPrices = new JBPrices(_projectOwner);
     hevm.label(address(_jbPrices), 'JBPrices');
 
-    address contractAtNoncePlusOne = addressFrom(address(this), 5);
+    address contractAtNoncePlusOne = _addressFrom(address(this), 5);
 
     _jbFundingCycleStore = new JBFundingCycleStore(IJBDirectory(contractAtNoncePlusOne));
     hevm.label(address(_jbFundingCycleStore), 'JBFundingCycleStore');
@@ -182,6 +189,10 @@ contract TestBaseWorkflow is DSTestPlus {
       metadata: 0x00
     });
 
+    // ---- Deploy SliceCore Mock ----
+    _sliceCore = ISliceCore(address(new SliceCoreMock()));
+    hevm.label(address(_sliceCore), 'SliceCore');
+
     // ---- general setup ----
     hevm.deal(_beneficiary, 100 ether);
     hevm.deal(_projectOwner, 100 ether);
@@ -193,7 +204,7 @@ contract TestBaseWorkflow is DSTestPlus {
   }
 
   //https://ethereum.stackexchange.com/questions/24248/how-to-calculate-an-ethereum-contracts-address-during-its-creation-using-the-so
-  function addressFrom(address _origin, uint256 _nonce) internal pure returns (address _address) {
+  function _addressFrom(address _origin, uint256 _nonce) internal pure returns (address _address) {
     bytes memory data;
     if (_nonce == 0x00) data = abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(0x80));
     else if (_nonce <= 0x7f)
@@ -206,9 +217,94 @@ contract TestBaseWorkflow is DSTestPlus {
       data = abi.encodePacked(bytes1(0xd9), bytes1(0x94), _origin, bytes1(0x83), uint24(_nonce));
     else data = abi.encodePacked(bytes1(0xda), bytes1(0x94), _origin, bytes1(0x84), uint32(_nonce));
     bytes32 hash = keccak256(data);
-    assembly ("memory-safe"){
+    assembly {
       mstore(0, hash)
       _address := mload(0)
     }
+  }
+
+  function _formatDeployData() internal view returns(
+    DeployBluntDelegateData memory deployBluntDelegateData,
+    JBLaunchProjectData memory launchProjectData
+  ) {
+    uint88 hardCap = 10 ether;
+    uint88 target = 1 ether;
+    uint40 releaseTimelock = 0;
+    uint40 transferTimelock = 0;
+    uint16 afterRoundReservedRate = 1000; // 10%
+    uint256 lockPeriod = 2 days;
+    string memory tokenName = 'tokenName';
+    string memory tokenSymbol = 'SYMBOL';
+
+    JBSplit[] memory afterRoundSplits = new JBSplit[](1);
+    afterRoundSplits[0] = JBSplit({
+      preferClaimed: true,
+      preferAddToBalance: false,
+      percent: JBConstants.SPLITS_TOTAL_PERCENT, // 100%
+      projectId: 0,
+      beneficiary: payable(address(0)),
+      lockedUntil: block.timestamp + lockPeriod,
+      allocator: IJBSplitAllocator(address(0))
+    });
+
+    deployBluntDelegateData = DeployBluntDelegateData(
+      _jbDirectory,
+      _jbTokenStore,
+      _jbFundingCycleStore,
+      _jbProjects,
+      _jbController,
+      _sliceCore,
+      _bluntProjectOwner,
+      hardCap,
+      target,
+      releaseTimelock,
+      transferTimelock,
+      afterRoundReservedRate,
+      afterRoundSplits,
+      tokenName,
+      tokenSymbol
+    );
+
+    launchProjectData = JBLaunchProjectData(
+      JBProjectMetadata({
+        content:'', 
+        domain: 0
+      }),
+      JBFundingCycleData({
+        duration: 7 days,
+        weight: 1e15, // 0.001 tokens per ETH contributed
+        discountRate: 0,
+        ballot: IJBFundingCycleBallot(address(0))
+      }),
+      JBFundingCycleMetadata({
+        global: JBGlobalFundingCycleMetadata({
+          allowSetTerminals: false,
+          allowSetController: false,
+          pauseTransfers: false
+        }),
+        reservedRate: 0,
+        redemptionRate: 0,
+        ballotRedemptionRate: 0,
+        pausePay: false,
+        pauseDistributions: false,
+        pauseRedeem: false,
+        pauseBurn: false,
+        allowMinting: false,
+        allowTerminalMigration: false,
+        allowControllerMigration: false,
+        holdFees: false,
+        preferClaimedTokenOverride: false,
+        useTotalOverflowForRedemptions: false,
+        useDataSourceForPay: false,
+        useDataSourceForRedeem: false,
+        dataSource: address(0),
+        metadata: 0
+      }),
+      0, // mustStartAtOrAfter
+      new JBGroupedSplits[](0),
+      new JBFundAccessConstraints[](0),
+      new IJBPaymentTerminal[](0),
+      '' // memo
+    );
   }
 }

@@ -7,11 +7,7 @@ import '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
 interface ISlicer is IERC721Receiver, IERC1155Receiver {
-  function release(
-    address account,
-    address currency,
-    bool withdraw
-  ) external;
+  function release(address account, address currency, bool withdraw) external;
 
   function batchReleaseAccounts(
     address[] memory accounts,
@@ -23,10 +19,10 @@ interface ISlicer is IERC721Receiver, IERC1155Receiver {
 
   function disperseFromVault(AccountAmount[] memory distributions, address currency) external;
 
-  function unreleased(address account, address currency)
-    external
-    view
-    returns (uint256 unreleasedAmount);
+  function unreleased(
+    address account,
+    address currency
+  ) external view returns (uint256 unreleasedAmount);
 
   function getFee() external view returns (uint256 fee);
 
@@ -72,21 +68,14 @@ interface ISlicer is IERC721Receiver, IERC1155Receiver {
 
   function _setCustomFee(bool customFeeActive, uint256 customFee) external;
 
-  function _releaseFromSliceCore(
+  function _releaseFromSliceCore(address account, address currency, uint256 accountSlices) external;
+
+  function _releaseFromFundsModule(
     address account,
-    address currency,
-    uint256 accountSlices
-  ) external;
+    address currency
+  ) external returns (uint256 amount, uint256 protocolPayment);
 
-  function _releaseFromFundsModule(address account, address currency)
-    external
-    returns (uint256 amount, uint256 protocolPayment);
-
-  function _handle721Purchase(
-    address buyer,
-    address contractAddress,
-    uint256 tokenId
-  ) external;
+  function _handle721Purchase(address buyer, address contractAddress, uint256 tokenId) external;
 
   function _handle1155Purchase(
     address buyer,

@@ -9,9 +9,9 @@ import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 interface ISliceCore is IERC1155, IERC2981 {
   function slicerManager() external view returns (ISlicerManager slicerManagerAddress);
 
-  function slice(SliceParams calldata params)
-    external
-    returns (uint256 slicerId, address slicerAddress);
+  function slice(
+    SliceParams calldata params
+  ) external returns (uint256 slicerId, address slicerAddress);
 
   function reslice(
     uint256 tokenId,
@@ -44,18 +44,9 @@ interface ISliceCore is IERC1155, IERC2981 {
     uint256 royaltyPercentage
   ) external;
 
-  function _slicers(uint256 id)
-    external
-    view
-    returns (
-      ISlicer,
-      address,
-      uint40,
-      uint32,
-      uint8,
-      uint8,
-      uint8
-    );
+  function _slicers(
+    uint256 id
+  ) external view returns (ISlicer, address, uint40, uint32, uint8, uint8, uint8);
 
   function slicers(uint256 id) external view returns (address);
 
