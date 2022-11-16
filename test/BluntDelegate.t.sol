@@ -1,18 +1,28 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity 0.8.17;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.17;
 
-// import {DSTestPlus} from 'solmate/test/utils/DSTestPlus.sol';
+import './helper/BluntSetup.sol';
+import 'contracts/BluntDelegate.sol';
+import 'contracts/BluntDelegateProjectDeployer.sol';
 
-// import {BluntDelegate} from 'contracts/BluntDelegate.sol';
+contract BluntDelegateTest is BluntSetup {
+  BluntDelegateProjectDeployer public bluntDeployer;
+  BluntDelegate public bluntDelegate;
 
-// contract BluntDelegateTest is DSTestPlus {
-//   BluntDelegate delegate;
+  function setUp() public virtual override {
+    BluntSetup.setUp();
 
-//   function setUp() public {
-//     delegate = new BluntDelegate();
-//   }
+    bluntDeployer = new BluntDelegateProjectDeployer(_jbController, _jbOperatorStore);
 
-//   function testDoSomething() public {}
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    ) = _formatDeployData();
 
-//   receive() external payable {}
-// }
+    uint256 projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+
+    bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
+  }
+
+  function testSomething() public {}
+}

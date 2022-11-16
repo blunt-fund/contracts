@@ -79,6 +79,4 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     hevm.expectRevert(bytes4(keccak256('INVALID_TOKEN_ISSUANCE()')));
     bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
   }
-
-  receive() external payable {}
 }
