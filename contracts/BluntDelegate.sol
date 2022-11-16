@@ -165,7 +165,9 @@ contract BluntDelegate is IBluntDelegate {
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
   */
-  function payParams(JBPayParamsData calldata _data)
+  function payParams(
+    JBPayParamsData calldata _data
+  )
     external
     view
     override
@@ -192,7 +194,9 @@ contract BluntDelegate is IBluntDelegate {
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
   */
-  function redeemParams(JBRedeemParamsData calldata _data)
+  function redeemParams(
+    JBRedeemParamsData calldata _data
+  )
     external
     view
     override
@@ -228,27 +232,8 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Returns info related to round.
   */
-  function getRoundInfo()
-    external
-    view
-    override
-    returns (
-      uint256,
-      uint256,
-      uint256,
-      uint40,
-      uint40,
-      address,
-      uint40,
-      uint16,
-      JBSplit[] memory,
-      string memory,
-      string memory,
-      bool,
-      uint256
-    )
-  {
-    return (
+  function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
+    roundInfo = RoundInfo(
       totalContributions,
       target,
       hardCap,
