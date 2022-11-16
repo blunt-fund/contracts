@@ -23,7 +23,7 @@ contract SliceCoreMock is ERC1155 {
     address[] memory recipients,
     uint256 id,
     uint256[] memory amounts,
-    bool release
+    bool
   ) external {
     for (uint256 i; i < recipients.length; i++) {
       _safeTransferFrom(from, recipients[i], id, amounts[i], '');
@@ -37,6 +37,6 @@ contract SliceCoreMock is ERC1155 {
     uint256 amount,
     bytes memory data
   ) external {
-    _safeTransferFrom(from, to, id, amount, '');
+    _safeTransferFrom(from, to, id, amount, data);
   }
 }
