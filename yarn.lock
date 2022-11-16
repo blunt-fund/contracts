@@ -51,7 +51,17 @@
   "resolved" "https://registry.npmjs.org/@ethersproject/logger/-/logger-5.7.0.tgz"
   "version" "5.7.0"
 
-"@jbx-protocol/juice-contracts-v3@^2.0.2":
+"@jbx-protocol/juice-721-delegate@^3.0.2":
+  "integrity" "sha512-d0FoHLCQt5fHKuu7tUs1DelAQgYFAyA6FWPOie6kpQqoVNilAtU5njGv+/eATJSVhnIPriXI5cSmssekob1j4g=="
+  "resolved" "https://registry.npmjs.org/@jbx-protocol/juice-721-delegate/-/juice-721-delegate-3.0.2.tgz"
+  "version" "3.0.2"
+  dependencies:
+    "@jbx-protocol/juice-contracts-v3" "^2.0.0"
+    "@openzeppelin/contracts" "^4.6.0"
+    "@paulrberg/contracts" "^3.7.0"
+    "prb-math" "^2.4.3"
+
+"@jbx-protocol/juice-contracts-v3@^2.0.0", "@jbx-protocol/juice-contracts-v3@^2.0.2":
   "integrity" "sha512-Xf9ZJbpIKjEwrcFfWKLMO8WmAO2OOZ/cJCV06XZZkApHHyJls901wyxX+EUZJHQkODO6zFjBGf8IHPla4YFYAw=="
   "resolved" "https://registry.npmjs.org/@jbx-protocol/juice-contracts-v3/-/juice-contracts-v3-2.0.2.tgz"
   "version" "2.0.2"
@@ -822,7 +832,7 @@
   "resolved" "https://registry.npmjs.org/path-key/-/path-key-2.0.1.tgz"
   "version" "2.0.1"
 
-"prb-math@^2.4.1":
+"prb-math@^2.4.1", "prb-math@^2.4.3":
   "integrity" "sha512-t5jncEscKmWg7COkMkmbXXxSeDI6Xl21rxx5e+oxUCqskNvsu6Q9RqdVfGY6y+sMwyMQE8DJ/OOyQ9ExH1yfbw=="
   "resolved" "https://registry.npmjs.org/prb-math/-/prb-math-2.4.3.tgz"
   "version" "2.4.3"

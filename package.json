@@ -1,15 +1,16 @@
 {
   "name": "blunt-finance",
   "bugs": {
-    "url": "https://github.com/mejango/blunt-finance/issues"
+    "url": "https://github.com/jbx-protocol/blunt-finance/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mejango/blunt-finance"
+    "url": "https://github.com/jbx-protocol/blunt-finance"
   },
   "version": "1.0.0",
   "license": "MIT",
   "dependencies": {
+    "@jbx-protocol/juice-721-delegate": "^3.0.2",
     "@jbx-protocol/juice-contracts-v3": "^2.0.2",
     "@openzeppelin/contracts": "^4.6.0",
     "@paulrberg/contracts": "^3.7.0"
