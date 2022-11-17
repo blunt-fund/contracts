@@ -44,9 +44,10 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.fundingCycleRound, 1);
     assertEq(roundInfo.afterRoundReservedRate, 1000);
     assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, false);
-    assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT);
+    assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
     assertEq(roundInfo.afterRoundSplits[0].beneficiary, address(0));
-    assertEq(roundInfo.afterRoundSplits[0].projectId, 0);
+    assertEq(roundInfo.afterRoundSplits[1].percent, 1000);
+    assertEq(roundInfo.afterRoundSplits[1].beneficiary, address(1));
     assertApproxEq(roundInfo.afterRoundSplits[0].lockedUntil, block.timestamp + 2 days, 1);
     assertEq(roundInfo.tokenName, 'tokenName');
     assertEq(roundInfo.tokenSymbol, 'SYMBOL');
@@ -256,10 +257,15 @@ contract BluntDelegateTest is BluntSetup {
       _domain: timestamp,
       _group: 2
     });
-    assertEq(splits.length, 1);
+    assertEq(splits.length, 2);
     assertFalse(address(splits[0].beneficiary) == address(0));
     assertBoolEq(splits[0].preferClaimed, true);
+    assertEq(splits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
     assertTrue(splits[0].lockedUntil != 0);
+    assertEq(address(splits[1].beneficiary), address(1));
+    assertBoolEq(splits[1].preferClaimed, false);
+    assertEq(splits[1].percent,1000);
+    assertEq(splits[1].lockedUntil, 0);
   }
 
   function testTransferUnclaimedSlicesTo() public {
