@@ -15,7 +15,7 @@ contract SliceCoreMock is ERC1155 {
     tokenId++;
     slicerId = tokenId;
     _mint(params.payees[0].account, slicerId, params.payees[0].shares, '');
-    slicerAddress = address(uint160(slicerId));
+    slicerAddress = address(uint160(uint256(keccak256('slicerId'))));
   }
 
   function slicerBatchTransfer(
@@ -38,5 +38,9 @@ contract SliceCoreMock is ERC1155 {
     bytes memory data
   ) external {
     _safeTransferFrom(from, to, id, amount, data);
+  }
+
+  function slicers(uint256 slicerId) external view returns (address slicerAddress) {
+    slicerAddress = address(uint160(uint256(keccak256('slicerId'))));
   }
 }

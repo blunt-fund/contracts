@@ -19,6 +19,7 @@ contract BluntDelegate is IBluntDelegate {
   error SLICER_NOT_YET_CREATED();
   error VALUE_NOT_EXACT();
   error ROUND_CLOSED();
+  error ROUND_NOT_CLOSED();
   error NOT_PROJECT_OWNER();
   error ALREADY_QUEUED();
 
@@ -585,6 +586,20 @@ contract BluntDelegate is IBluntDelegate {
     );
 
     slicerId = uint152(slicerId_);
+  }
+
+  /**
+    @notice 
+    Transfers the entire balance of an ERC20 token from this contract to the slicer if the round 
+    was closed successfully, otherwise the project owner.
+    
+    @dev Reverts if round is not closed.
+  */
+  function transferToken(IERC20 token) external {
+    if (!isRoundClosed) revert ROUND_NOT_CLOSED();
+
+    address to = totalContributions > target ? sliceCore.slicers(slicerId) : projectOwner;
+    token.transfer(to, token.balanceOf(address(this)));
   }
 
   /**
