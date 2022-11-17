@@ -447,7 +447,7 @@ contract BluntDelegate is IBluntDelegate {
     /// Set JBFundingCycleData with duration 0 and null params
     JBFundingCycleData memory data = JBFundingCycleData({
       duration: 0,
-      weight: 0,
+      weight: 1,
       discountRate: 0,
       ballot: IJBFundingCycleBallot(address(0))
     });
