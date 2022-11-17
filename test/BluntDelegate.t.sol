@@ -10,6 +10,7 @@ contract BluntDelegateTest is BluntSetup {
   BluntDelegate public bluntDelegate;
 
   address public constant user = address(69);
+  address public constant user2 = address(420);
   uint256 public projectId;
 
   function setUp() public virtual override {
@@ -26,6 +27,7 @@ contract BluntDelegateTest is BluntSetup {
 
     bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
     hevm.deal(user, 1e21);
+    hevm.deal(user2, 1e21);
     hevm.deal(_bluntProjectOwner, 1e21);
   }
 
@@ -211,7 +213,7 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    uint256 totalContributions= bluntDelegate.totalContributions();
+    uint256 totalContributions = bluntDelegate.totalContributions();
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
     bluntDelegate.closeRound();
@@ -234,12 +236,12 @@ contract BluntDelegateTest is BluntSetup {
     assertBoolEq(metadata.useDataSourceForPay, false);
     assertBoolEq(metadata.useDataSourceForRedeem, false);
     assertEq(metadata.dataSource, address(0));
-    
+
     assertEq(fundingCycle.duration, 0);
     assertEq(fundingCycle.weight, 1e24);
     assertEq(fundingCycle.discountRate, 0);
     assertEq(address(fundingCycle.ballot), address(0));
-    
+
     assertEq(owner, address(_bluntProjectOwner));
 
     assertTrue(currency != address(0));
@@ -248,13 +250,71 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId != 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == totalContributions / 1e15);
 
-    // TODO: Figure out why splits don't work. 
+    // TODO: Figure out why splits don't work.
     // Did I set them wrong in the contracts, or am I retrieving them wrong in the tests?
-    // 
+    //
     // JBSplit[] memory splits = _jbSplitsStore.splitsOf(projectId, 1, 2);
     // assertEq(splits.length, 1);
     // assertBoolEq(address(splits[0].beneficiary) != address(0));
     // assertBoolEq(splits[0].preferClaimed, true);
+    // assertTrue(splits[0].lockedUntil != 0);
+  }
+
+  function testTransferUnclaimedSlicesTo() public {
+    // Make two payments
+    uint256 amount = 1e18;
+    hevm.prank(user);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
+    amount = 2e18;
+    hevm.prank(user2);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+
+    // Close round
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+
+    uint256 slicerId = bluntDelegate.slicerId();
+    address[] memory beneficiaries = new address[](3);
+    beneficiaries[0] = user;
+    beneficiaries[1] = address(3);
+    beneficiaries[2] = user2;
+
+    bluntDelegate.transferUnclaimedSlicesTo(beneficiaries);
+
+    assertEq(_sliceCore.balanceOf(address(bluntDelegate), slicerId), 0);
+    assertEq(_sliceCore.balanceOf(user, slicerId), 1e18 / 1e15);
+    assertEq(_sliceCore.balanceOf(user2, slicerId), 2e18 / 1e15);
+    assertEq(_sliceCore.balanceOf(address(3), slicerId), 0);
+    assertEq(bluntDelegate.contributions(user), 0);
+    assertEq(bluntDelegate.contributions(user2), 0);
+  }
+
+  function testClaimSlices() public {
+    // Make two payments
+    uint256 amount = 1e18;
+    hevm.prank(user);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
+    amount = 2e18;
+    hevm.prank(user2);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+
+    // Close round
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+
+    uint256 slicerId = bluntDelegate.slicerId();
+
+    hevm.prank(user);
+    bluntDelegate.claimSlices();
+
+    assertEq(_sliceCore.balanceOf(address(bluntDelegate), slicerId), 2e18 / 1e15);
+    assertEq(_sliceCore.balanceOf(user, slicerId), 1e18 / 1e15);
+    assertEq(bluntDelegate.contributions(user), 0);
+    assertEq(bluntDelegate.contributions(user2), 2e18);
   }
 
   ///////////////////////////////////////
@@ -297,16 +357,7 @@ contract BluntDelegateTest is BluntSetup {
     hevm.startPrank(user);
 
     uint256 amount = 1e18;
-    _jbETHPaymentTerminal.pay{value: amount}(
-      projectId,
-      0,
-      address(0),
-      user,
-      0,
-      false,
-      '',
-      ''
-    );
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
 
     uint256 tokensReturned = 1e11; // corresponds to 1e14 wei
     hevm.expectRevert(bytes4(keccak256('VALUE_NOT_EXACT()')));
@@ -360,6 +411,38 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.expectRevert(bytes4(keccak256('ROUND_CLOSED()')));
     bluntDelegate.closeRound();
+    hevm.stopPrank();
+  }
+
+  function testRevert_transferUnclaimedSlicesTo_slicerNotCreated() public {
+    // Make two payments
+    uint256 amount = 1e18;
+    hevm.prank(user);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
+    amount = 2e18;
+    hevm.prank(user2);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+
+    address[] memory beneficiaries = new address[](2);
+    beneficiaries[0] = user;
+    beneficiaries[1] = user2;
+
+    hevm.expectRevert(bytes4(keccak256('SLICER_NOT_YET_CREATED()')));
+    bluntDelegate.transferUnclaimedSlicesTo(beneficiaries);
+  }
+
+  function testRevert_claimSlices_slicerNotCreated() public {
+    // Make two payments
+    uint256 amount = 1e18;
+    hevm.prank(user);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
+    amount = 2e18;
+    hevm.prank(user2);
+    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+
+    hevm.startPrank(user);
+    hevm.expectRevert(bytes4(keccak256('SLICER_NOT_YET_CREATED()')));
+    bluntDelegate.claimSlices();
     hevm.stopPrank();
   }
 }
