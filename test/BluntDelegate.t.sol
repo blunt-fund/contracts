@@ -9,6 +9,7 @@ contract BluntDelegateTest is BluntSetup {
   BluntDelegateProjectDeployer public bluntDeployer;
   BluntDelegate public bluntDelegate;
 
+  address public constant user = address(69);
   uint256 public projectId;
 
   function setUp() public virtual override {
@@ -24,6 +25,7 @@ contract BluntDelegateTest is BluntSetup {
     projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
 
     bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
+    hevm.deal(user, 1e21);
   }
 
   function testRoundInfo() public {
@@ -100,5 +102,123 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(memo, 'test');
     assertEq(address(delegateAllocations[0].delegate), address(bluntDelegate));
     assertEq(delegateAllocations[0].amount, 0);
+  }
+
+  function testDidPay() public {
+    uint256 amount = 1e15;
+    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    assertEq(mintedTokens, 1e12);
+    assertEq(uint256(bluntDelegate.totalContributions()), amount);
+    assertEq(bluntDelegate.contributions(msg.sender), amount);
+  }
+
+  function testDidRedeem() public {
+    hevm.startPrank(user);
+
+    uint256 amount = 1e18;
+    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      user,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    uint256 tokensReturned = 1e14;
+    uint256 reclaimAmount = _jbETHPaymentTerminal.redeemTokensOf(
+      user,
+      projectId,
+      tokensReturned,
+      address(0),
+      tokensReturned,
+      payable(user),
+      '',
+      ''
+    );
+
+    hevm.stopPrank();
+
+    assertEq(mintedTokens, 1e15);
+    assertEq(reclaimAmount, 1e17);
+    assertEq(uint256(bluntDelegate.totalContributions()), 9e17);
+    assertEq(bluntDelegate.contributions(user), 9e17);
+  }
+
+  ///////////////////////////////////////
+  /////////////// REVERTS ///////////////
+  ///////////////////////////////////////
+  function testRevert_DidPay_ValueNotExact() public {
+    uint256 amount = 1e18 + 1e14;
+
+    hevm.expectRevert(bytes4(keccak256('VALUE_NOT_EXACT()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
+  function testRevert_DidPay_CapReached() public {
+    uint256 amount = 1e19 + 1e15;
+
+    hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
+  function testRevert_DidRedeem_ValueNotExact() public {
+    hevm.startPrank(user);
+
+    uint256 amount = 1e18;
+    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      user,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    uint256 tokensReturned = 1e11; // corresponds to 1e14 wei
+    hevm.expectRevert(bytes4(keccak256('VALUE_NOT_EXACT()')));
+    _jbETHPaymentTerminal.redeemTokensOf(
+      user,
+      projectId,
+      tokensReturned,
+      address(0),
+      tokensReturned,
+      payable(user),
+      '',
+      ''
+    );
+    hevm.stopPrank();
   }
 }
