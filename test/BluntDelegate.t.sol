@@ -43,9 +43,10 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
     assertEq(roundInfo.fundingCycleRound, 1);
     assertEq(roundInfo.afterRoundReservedRate, 1000);
-    assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, true);
+    assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, false);
     assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT);
     assertEq(roundInfo.afterRoundSplits[0].beneficiary, address(0));
+    assertEq(roundInfo.afterRoundSplits[0].projectId, 0);
     assertApproxEq(roundInfo.afterRoundSplits[0].lockedUntil, block.timestamp + 2 days, 1);
     assertEq(roundInfo.tokenName, 'tokenName');
     assertEq(roundInfo.tokenSymbol, 'SYMBOL');
@@ -219,16 +220,19 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.closeRound();
     hevm.stopPrank();
 
+    uint256 timestamp = block.timestamp;
+
+    assertBoolEq(bluntDelegate.isRoundClosed(), true);
+
     // Wait for the funding cycle to end
     hevm.warp(7 days + 100);
 
     (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
       .currentFundingCycleOf(projectId);
-    address owner = _jbProjects.ownerOf(projectId);
-    currency = address(_jbTokenStore.tokenOf(projectId));
-
-    assertBoolEq(bluntDelegate.isRoundClosed(), true);
-
+    assertEq(fundingCycle.duration, 0);
+    assertEq(fundingCycle.weight, 1e24);
+    assertEq(fundingCycle.discountRate, 0);
+    assertEq(address(fundingCycle.ballot), address(0));
     assertEq(metadata.reservedRate, _afterRoundReservedRate);
     assertEq(metadata.redemptionRate, 0);
     assertBoolEq(metadata.global.pauseTransfers, false);
@@ -237,27 +241,25 @@ contract BluntDelegateTest is BluntSetup {
     assertBoolEq(metadata.useDataSourceForRedeem, false);
     assertEq(metadata.dataSource, address(0));
 
-    assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
-    assertEq(fundingCycle.discountRate, 0);
-    assertEq(address(fundingCycle.ballot), address(0));
-
+    address owner = _jbProjects.ownerOf(projectId);
     assertEq(owner, address(_bluntProjectOwner));
 
+    currency = address(_jbTokenStore.tokenOf(projectId));
     assertTrue(currency != address(0));
 
     slicerId = bluntDelegate.slicerId();
     assertTrue(slicerId != 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == totalContributions / 1e15);
 
-    // TODO: Figure out why splits don't work.
-    // Did I set them wrong in the contracts, or am I retrieving them wrong in the tests?
-    //
-    // JBSplit[] memory splits = _jbSplitsStore.splitsOf(projectId, 1, 2);
-    // assertEq(splits.length, 1);
-    // assertBoolEq(address(splits[0].beneficiary) != address(0));
-    // assertBoolEq(splits[0].preferClaimed, true);
-    // assertTrue(splits[0].lockedUntil != 0);
+    JBSplit[] memory splits = _jbSplitsStore.splitsOf({
+      _projectId: projectId,
+      _domain: timestamp,
+      _group: 2
+    });
+    assertEq(splits.length, 1);
+    assertFalse(address(splits[0].beneficiary) == address(0));
+    assertBoolEq(splits[0].preferClaimed, true);
+    assertTrue(splits[0].lockedUntil != 0);
   }
 
   function testTransferUnclaimedSlicesTo() public {
