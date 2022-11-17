@@ -134,13 +134,19 @@ contract BluntDelegate is IBluntDelegate {
     
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
   */
-  uint160 public slicerId;
+  uint152 public slicerId;
 
   /**
     @notice
     True if the round has been closed 
   */
   bool public isRoundClosed;
+
+  /**
+    @notice
+    True if the round has been queued
+  */
+  bool public isQueued;
 
   /**
     @notice
@@ -435,7 +441,8 @@ contract BluntDelegate is IBluntDelegate {
       .currentFundingCycleOf(projectId);
 
     /// Revert if current funding cycle has no duration set
-    if (fundingCycle.duration != 0) revert ALREADY_QUEUED();
+    if (fundingCycle.duration == 0 || isQueued) revert ALREADY_QUEUED();
+    isQueued = true;
 
     /// Set JBFundingCycleData with duration 0 and null params
     JBFundingCycleData memory data = JBFundingCycleData({
@@ -565,7 +572,7 @@ contract BluntDelegate is IBluntDelegate {
       )
     );
 
-    slicerId = uint160(slicerId_);
+    slicerId = uint152(slicerId_);
   }
 
   /**
