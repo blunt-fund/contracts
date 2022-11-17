@@ -23,9 +23,9 @@ contract BluntDelegateProjectDeployer is
 
   /**
     @notice
-    Ratio between amount of tokens contributed and slices minted
+    Ratio between amount of eth contributed and tokens minted
   */
-  uint64 public constant TOKENS_PER_SLICE = 1e15; // 1 token every 0.001 ETH
+  uint64 public constant TOKENS_PER_ETH = 1e15;
 
   /** 
     @notice
@@ -76,9 +76,9 @@ contract BluntDelegateProjectDeployer is
     // Disable token transfers
     _launchProjectData.metadata.global.pauseTransfers = true;
 
-    // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_SLICE`
+    // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_ETH`
     if (
-      _launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_SLICE != 0
+      _launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_ETH != 0
     ) revert INVALID_TOKEN_ISSUANCE();
 
     // Launch the project.
