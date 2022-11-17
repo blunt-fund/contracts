@@ -464,7 +464,6 @@ contract BluntDelegate is IBluntDelegate {
     );
   }
 
-  /// TODO: @jango Check all of this makes sense
   /**
     @notice 
     Close blunt round if target has been reached. 
@@ -483,7 +482,7 @@ contract BluntDelegate is IBluntDelegate {
     isRoundClosed = true;
 
     /// If target has been reached
-    if (totalContributions > target) {
+    if (totalContributions >= target) {
       /// Get current JBFundingCycleMetadata
       (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
