@@ -381,6 +381,8 @@ contract BluntDelegate is IBluntDelegate {
     This function will revert if the slicer hasn't been created yet.
   */
   function transferUnclaimedSlicesTo(address[] calldata beneficiaries) external override {
+    if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
+    
     /// Add reference for slices amounts of each beneficiary
     uint256[] memory amounts = new uint256[](beneficiaries.length);
 
