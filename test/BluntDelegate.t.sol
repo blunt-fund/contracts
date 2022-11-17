@@ -26,6 +26,7 @@ contract BluntDelegateTest is BluntSetup {
 
     bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
     hevm.deal(user, 1e21);
+    hevm.deal(_bluntProjectOwner, 1e21);
   }
 
   function testRoundInfo() public {
@@ -157,10 +158,110 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(bluntDelegate.contributions(user), 9e17);
   }
 
+  function testQueueNextPhase() public {
+    hevm.warp(100);
+    bluntDelegate.queueNextPhase();
+
+    (JBFundingCycle memory fundingCycle, , ) = _jbController.latestConfiguredFundingCycleOf(
+      projectId
+    );
+
+    assertEq(fundingCycle.duration, 0);
+    assertEq(fundingCycle.weight, 0);
+    assertEq(fundingCycle.discountRate, 0);
+    assertEq(address(fundingCycle.ballot), address(0));
+  }
+
+  function testcloseRoundBelowTarget() public {
+    uint256 amount = 1e17;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+
+    assertBoolEq(bluntDelegate.isRoundClosed(), true);
+  }
+
+  function testcloseRoundAboveTarget() public {
+    address currency = address(_jbTokenStore.tokenOf(projectId));
+    uint256 slicerId = bluntDelegate.slicerId();
+    assertTrue(currency == address(0));
+    assertTrue(slicerId == 0);
+    assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == 0);
+
+    uint256 amount = 1e18;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    uint256 totalContributions= bluntDelegate.totalContributions();
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+
+    // Wait for the funding cycle to end
+    hevm.warp(7 days + 100);
+
+    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
+      .currentFundingCycleOf(projectId);
+    address owner = _jbProjects.ownerOf(projectId);
+    currency = address(_jbTokenStore.tokenOf(projectId));
+
+    assertBoolEq(bluntDelegate.isRoundClosed(), true);
+
+    assertEq(metadata.reservedRate, _afterRoundReservedRate);
+    assertEq(metadata.redemptionRate, 0);
+    assertBoolEq(metadata.global.pauseTransfers, false);
+    assertBoolEq(metadata.pausePay, true);
+    assertBoolEq(metadata.useDataSourceForPay, false);
+    assertBoolEq(metadata.useDataSourceForRedeem, false);
+    assertEq(metadata.dataSource, address(0));
+    
+    assertEq(fundingCycle.duration, 0);
+    assertEq(fundingCycle.weight, 1e24);
+    assertEq(fundingCycle.discountRate, 0);
+    assertEq(address(fundingCycle.ballot), address(0));
+    
+    assertEq(owner, address(_bluntProjectOwner));
+
+    assertTrue(currency != address(0));
+
+    slicerId = bluntDelegate.slicerId();
+    assertTrue(slicerId != 0);
+    assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == totalContributions / 1e15);
+
+    // TODO: Figure out why splits don't work. 
+    // Did I set them wrong in the contracts, or am I retrieving them wrong in the tests?
+    // 
+    // JBSplit[] memory splits = _jbSplitsStore.splitsOf(projectId, 1, 2);
+    // assertEq(splits.length, 1);
+    // assertBoolEq(address(splits[0].beneficiary) != address(0));
+    // assertBoolEq(splits[0].preferClaimed, true);
+  }
+
   ///////////////////////////////////////
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
-  function testRevert_DidPay_ValueNotExact() public {
+
+  function testRevert_didPay_valueNotExact() public {
     uint256 amount = 1e18 + 1e14;
 
     hevm.expectRevert(bytes4(keccak256('VALUE_NOT_EXACT()')));
@@ -176,7 +277,7 @@ contract BluntDelegateTest is BluntSetup {
     );
   }
 
-  function testRevert_DidPay_CapReached() public {
+  function testRevert_didPay_capReached() public {
     uint256 amount = 1e19 + 1e15;
 
     hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
@@ -192,11 +293,11 @@ contract BluntDelegateTest is BluntSetup {
     );
   }
 
-  function testRevert_DidRedeem_ValueNotExact() public {
+  function testRevert_didRedeem_valueNotExact() public {
     hevm.startPrank(user);
 
     uint256 amount = 1e18;
-    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
       address(0),
@@ -219,6 +320,46 @@ contract BluntDelegateTest is BluntSetup {
       '',
       ''
     );
+    hevm.stopPrank();
+  }
+
+  function testRevert_queueNextPhase_alreadyQueued() public {
+    hevm.warp(100);
+    bluntDelegate.queueNextPhase();
+    hevm.expectRevert(bytes4(keccak256('ALREADY_QUEUED()')));
+    bluntDelegate.queueNextPhase();
+  }
+
+  function testRevert_queueNextPhase_noNeedToQueue() public {
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData_,
+      JBLaunchProjectData memory launchProjectData_
+    ) = _formatDeployData();
+
+    launchProjectData_.data = JBFundingCycleData(0, 1e15, 0, IJBFundingCycleBallot(address(0)));
+
+    uint256 projectId_ = bluntDeployer.launchProjectFor(
+      deployBluntDelegateData_,
+      launchProjectData_
+    );
+    BluntDelegate bluntDelegate_ = BluntDelegate(_jbProjects.ownerOf(projectId_));
+
+    hevm.warp(100);
+    hevm.expectRevert(bytes4(keccak256('ALREADY_QUEUED()')));
+    bluntDelegate_.queueNextPhase();
+  }
+
+  function testRevert_closeRound_notProjectOwner() public {
+    hevm.expectRevert(bytes4(keccak256('NOT_PROJECT_OWNER()')));
+    bluntDelegate.closeRound();
+  }
+
+  function testRevert_closeRound_roundClosed() public {
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+
+    hevm.expectRevert(bytes4(keccak256('ROUND_CLOSED()')));
+    bluntDelegate.closeRound();
     hevm.stopPrank();
   }
 }
