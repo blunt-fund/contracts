@@ -58,6 +58,14 @@ contract BluntSetup is DSTestPlus {
   address internal _projectOwner = address(123);
   address internal _beneficiary = address(69420);
   address internal _caller = address(696969);
+  uint88 internal _hardCap = 10 ether;
+  uint88 internal _target = 1 ether;
+  uint40 internal _releaseTimelock = 0;
+  uint40 internal _transferTimelock = 0;
+  uint16 internal _afterRoundReservedRate = 1000; // 10%
+  uint256 internal _lockPeriod = 2 days;
+  string  internal _tokenName = 'tokenName';
+  string  internal _tokenSymbol = 'SYMBOL';
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
@@ -228,15 +236,6 @@ contract BluntSetup is DSTestPlus {
     DeployBluntDelegateData memory deployBluntDelegateData,
     JBLaunchProjectData memory launchProjectData
   ) {
-    uint88 hardCap = 10 ether;
-    uint88 target = 1 ether;
-    uint40 releaseTimelock = 0;
-    uint40 transferTimelock = 0;
-    uint16 afterRoundReservedRate = 1000; // 10%
-    uint256 lockPeriod = 2 days;
-    string memory tokenName = 'tokenName';
-    string memory tokenSymbol = 'SYMBOL';
-
     JBSplit[] memory afterRoundSplits = new JBSplit[](1);
     afterRoundSplits[0] = JBSplit({
       preferClaimed: true,
@@ -244,7 +243,7 @@ contract BluntSetup is DSTestPlus {
       percent: JBConstants.SPLITS_TOTAL_PERCENT, // 100%
       projectId: 0,
       beneficiary: payable(address(0)),
-      lockedUntil: block.timestamp + lockPeriod,
+      lockedUntil: block.timestamp + _lockPeriod,
       allocator: IJBSplitAllocator(address(0))
     });
 
@@ -256,14 +255,14 @@ contract BluntSetup is DSTestPlus {
       _jbController,
       _sliceCore,
       _bluntProjectOwner,
-      hardCap,
-      target,
-      releaseTimelock,
-      transferTimelock,
-      afterRoundReservedRate,
+      _hardCap,
+      _target,
+      _releaseTimelock,
+      _transferTimelock,
+      _afterRoundReservedRate,
       afterRoundSplits,
-      tokenName,
-      tokenSymbol
+      _tokenName,
+      _tokenSymbol
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);
