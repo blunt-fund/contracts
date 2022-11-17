@@ -134,13 +134,19 @@ contract BluntDelegate is IBluntDelegate {
     
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
   */
-  uint160 public slicerId;
+  uint152 public slicerId;
 
   /**
     @notice
     True if the round has been closed 
   */
   bool public isRoundClosed;
+
+  /**
+    @notice
+    True if the round has been queued
+  */
+  bool public isQueued;
 
   /**
     @notice
@@ -165,7 +171,9 @@ contract BluntDelegate is IBluntDelegate {
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
   */
-  function payParams(JBPayParamsData calldata _data)
+  function payParams(
+    JBPayParamsData calldata _data
+  )
     external
     view
     override
@@ -192,7 +200,9 @@ contract BluntDelegate is IBluntDelegate {
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
   */
-  function redeemParams(JBRedeemParamsData calldata _data)
+  function redeemParams(
+    JBRedeemParamsData calldata _data
+  )
     external
     view
     override
@@ -228,27 +238,8 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Returns info related to round.
   */
-  function getRoundInfo()
-    external
-    view
-    override
-    returns (
-      uint256,
-      uint256,
-      uint256,
-      uint40,
-      uint40,
-      address,
-      uint40,
-      uint16,
-      JBSplit[] memory,
-      string memory,
-      string memory,
-      bool,
-      uint256
-    )
-  {
-    return (
+  function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
+    roundInfo = RoundInfo(
       totalContributions,
       target,
       hardCap,
@@ -301,7 +292,7 @@ contract BluntDelegate is IBluntDelegate {
 
     /// Store current funding cycle
     fundingCycleRound = uint40(
-      _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number
+      _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number + 1
     );
   }
 
@@ -390,6 +381,8 @@ contract BluntDelegate is IBluntDelegate {
     This function will revert if the slicer hasn't been created yet.
   */
   function transferUnclaimedSlicesTo(address[] calldata beneficiaries) external override {
+    if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
+    
     /// Add reference for slices amounts of each beneficiary
     uint256[] memory amounts = new uint256[](beneficiaries.length);
 
@@ -450,12 +443,13 @@ contract BluntDelegate is IBluntDelegate {
       .currentFundingCycleOf(projectId);
 
     /// Revert if current funding cycle has no duration set
-    if (fundingCycle.duration != 0) revert ALREADY_QUEUED();
+    if (fundingCycle.duration == 0 || isQueued) revert ALREADY_QUEUED();
+    isQueued = true;
 
     /// Set JBFundingCycleData with duration 0 and null params
     JBFundingCycleData memory data = JBFundingCycleData({
       duration: 0,
-      weight: 0,
+      weight: 1,
       discountRate: 0,
       ballot: IJBFundingCycleBallot(address(0))
     });
@@ -472,7 +466,6 @@ contract BluntDelegate is IBluntDelegate {
     );
   }
 
-  /// TODO: @jango Check all of this makes sense
   /**
     @notice 
     Close blunt round if target has been reached. 
@@ -491,7 +484,7 @@ contract BluntDelegate is IBluntDelegate {
     isRoundClosed = true;
 
     /// If target has been reached
-    if (totalContributions > target) {
+    if (totalContributions >= target) {
       /// Get current JBFundingCycleMetadata
       (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
@@ -580,7 +573,7 @@ contract BluntDelegate is IBluntDelegate {
       )
     );
 
-    slicerId = uint160(slicerId_);
+    slicerId = uint152(slicerId_);
   }
 
   /**
