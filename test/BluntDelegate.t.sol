@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import './helper/BluntSetup.sol';
+import './mocks/ERC20Mock.sol';
 import 'contracts/BluntDelegate.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
 
@@ -264,7 +265,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(splits[0].lockedUntil != 0);
     assertEq(address(splits[1].beneficiary), address(1));
     assertBoolEq(splits[1].preferClaimed, false);
-    assertEq(splits[1].percent,1000);
+    assertEq(splits[1].percent, 1000);
     assertEq(splits[1].lockedUntil, 0);
   }
 
@@ -325,9 +326,88 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(bluntDelegate.contributions(user2), 2e18);
   }
 
+  function testTransferTokenToSlicer() public {
+    ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
+
+    uint256 amount = 1e18 + 1e15;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+    hevm.warp(7 days + 100);
+
+    bluntDelegate.transferToken(IERC20(erc20));
+
+    address slicerAddress = address(uint160(uint256(keccak256('slicerId'))));
+    assertEq(erc20.balanceOf(address(bluntDelegate)), 0);
+    assertEq(erc20.balanceOf(slicerAddress), 1e18);
+  }
+
+  function testTransferTokenToProjectOwner() public {
+    ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
+
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+    hevm.warp(7 days + 100);
+
+    bluntDelegate.transferToken(IERC20(erc20));
+
+    assertEq(erc20.balanceOf(address(bluntDelegate)), 0);
+    assertEq(erc20.balanceOf(address(_bluntProjectOwner)), 1e18);
+  }
+
   ///////////////////////////////////////
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
+
+  function testRevert_didPay_RoundEnded() public {
+    hevm.warp(7 days + 100);
+
+    uint256 amount = 1e18;
+    hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
+  function testRevert_didPay_RoundClosed() public {
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+
+    uint256 amount = 1e18;
+    hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
 
   function testRevert_didPay_valueNotExact() public {
     uint256 amount = 1e18 + 1e14;
@@ -346,8 +426,19 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_didPay_capReached() public {
-    uint256 amount = 1e19 + 1e15;
+    uint256 amount = 1e19;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
 
+    amount = 1e15;
     hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
@@ -452,5 +543,12 @@ contract BluntDelegateTest is BluntSetup {
     hevm.expectRevert(bytes4(keccak256('SLICER_NOT_YET_CREATED()')));
     bluntDelegate.claimSlices();
     hevm.stopPrank();
+  }
+
+  function testRevert_transferToken_roundNotClosed() public {
+    ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
+
+    hevm.expectRevert(bytes4(keccak256('ROUND_NOT_CLOSED()')));
+    bluntDelegate.transferToken(IERC20(erc20));
   }
 }
