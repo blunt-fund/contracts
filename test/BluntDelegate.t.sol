@@ -329,6 +329,42 @@ contract BluntDelegateTest is BluntSetup {
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
 
+  function testRevert_didPay_RoundEnded() public {
+    hevm.warp(7 days + 100);
+
+    uint256 amount = 1e18;
+    hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
+  function testRevert_didPay_RoundClosed() public {
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+    hevm.stopPrank();
+
+    uint256 amount = 1e18;
+    hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
   function testRevert_didPay_valueNotExact() public {
     uint256 amount = 1e18 + 1e14;
 
@@ -346,8 +382,19 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_didPay_capReached() public {
-    uint256 amount = 1e19 + 1e15;
+    uint256 amount = 1e19;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
 
+    amount = 1e15;
     hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
