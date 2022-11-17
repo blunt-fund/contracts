@@ -40,12 +40,6 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
-    The ID of the project.
-  */
-  uint256 public immutable projectId;
-
-  /**
-    @notice
     The directory of terminals and controllers for projects.
   */
   IJBDirectory public immutable directory;
@@ -64,54 +58,69 @@ contract BluntDelegate is IBluntDelegate {
   */
   ISliceCore public immutable sliceCore;
 
+  /**
+    @notice
+    The ID of the project.
+  */
+  uint256 public immutable projectId;
+
   /** 
     @notice
     The owner of the project once the blunt round is concluded successfully.
   */
   address public immutable projectOwner;
+
   /** 
     @notice
     The minimum amount of contributions while this data source is in effect.
-    @dev uint88 is enough as it cannot be higher than `MAX_CONTRIBUTION`
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
   uint88 public immutable target;
+
   /** 
     @notice
     The maximum amount of contributions while this data source is in effect. 
-    @dev uint88 is enough as it cannot be higher than `MAX_CONTRIBUTION`
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
   uint88 public immutable hardCap;
+
   /**  
     @notice
     The timestamp when the slicer becomes releasable.
   */
   uint40 public immutable releaseTimelock;
+
   /** 
     @notice
     The timestamp when the slicer becomes transferable.
   */
   uint40 public immutable transferTimelock;
+
   /** 
     @notice
     The number of the funding cycle related to the blunt round.
-    @dev uint40 for bit packing
+    @dev uint40 is sufficient and saves gas with bit packing
   */
   uint40 public immutable fundingCycleRound;
+
   /** 
     @notice
     Reserved rate to be set in case of a successful round
   */
   uint16 public immutable afterRoundReservedRate;
+
   /** 
     @notice
     Project metadata splits to be enabled when a successful round is closed.
   */
   JBSplit[] public afterRoundSplits;
+
   /** 
     @notice
     Name of the token to be issued in case of a successful round
   */
   string public tokenName;
+
   /** 
     @notice
     Symbol of the token to be issued in case of a successful round
@@ -125,6 +134,7 @@ contract BluntDelegate is IBluntDelegate {
   /**
     @notice
     Total contributions received during round
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
   uint88 public totalContributions;
 
@@ -133,6 +143,7 @@ contract BluntDelegate is IBluntDelegate {
     ID of the slicer related to the blunt round
     
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
+    uint152 is sufficient and saves gas by bit packing efficiently.
   */
   uint152 public slicerId;
 
@@ -382,7 +393,7 @@ contract BluntDelegate is IBluntDelegate {
   */
   function transferUnclaimedSlicesTo(address[] calldata beneficiaries) external override {
     if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
-    
+
     /// Add reference for slices amounts of each beneficiary
     uint256[] memory amounts = new uint256[](beneficiaries.length);
 
