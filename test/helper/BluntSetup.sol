@@ -37,6 +37,7 @@ import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBFundingCycleMetad
 import '@paulrberg/contracts/math/PRBMath.sol';
 
 import {DSTestPlus} from 'solmate/test/utils/DSTestPlus.sol';
+import 'forge-std/console2.sol';
 
 import './AccessJBLib.sol';
 import '../structs/JBPayDataSourceFundingCycleMetadata.sol'; 
@@ -265,6 +266,9 @@ contract BluntSetup is DSTestPlus {
       tokenSymbol
     );
 
+    IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);
+    terminals[0] = IJBPaymentTerminal(_jbETHPaymentTerminal);
+
     launchProjectData = JBLaunchProjectData(
       JBProjectMetadata({
         content:'', 
@@ -303,7 +307,7 @@ contract BluntSetup is DSTestPlus {
       0, // mustStartAtOrAfter
       new JBGroupedSplits[](0),
       new JBFundAccessConstraints[](0),
-      new IJBPaymentTerminal[](0),
+      terminals,
       '' // memo
     );
   }
