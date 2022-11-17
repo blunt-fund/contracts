@@ -236,14 +236,23 @@ contract BluntSetup is DSTestPlus {
     DeployBluntDelegateData memory deployBluntDelegateData,
     JBLaunchProjectData memory launchProjectData
   ) {
-    JBSplit[] memory afterRoundSplits = new JBSplit[](1);
-    afterRoundSplits[0] = JBSplit({
-      preferClaimed: true,
+    JBSplit[] memory _afterRoundSplits = new JBSplit[](2);
+    _afterRoundSplits[0] = JBSplit({
+      preferClaimed: false,
       preferAddToBalance: false,
-      percent: JBConstants.SPLITS_TOTAL_PERCENT, // 100%
+      percent: JBConstants.SPLITS_TOTAL_PERCENT - 1000,
       projectId: 0,
-      beneficiary: payable(address(0)),
+      beneficiary: payable(address(0)), // Gets replaced with slicer address later
       lockedUntil: block.timestamp + _lockPeriod,
+      allocator: IJBSplitAllocator(address(0))
+    });
+    _afterRoundSplits[1] = JBSplit({
+      preferClaimed: false,
+      preferAddToBalance: false,
+      percent: 1000,
+      projectId: 0,
+      beneficiary: payable(address(1)), // Gets replaced with slicer address later
+      lockedUntil: 0,
       allocator: IJBSplitAllocator(address(0))
     });
 
@@ -260,7 +269,7 @@ contract BluntSetup is DSTestPlus {
       _releaseTimelock,
       _transferTimelock,
       _afterRoundReservedRate,
-      afterRoundSplits,
+      _afterRoundSplits,
       _tokenName,
       _tokenSymbol
     );
