@@ -36,7 +36,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.releaseTimelock, 0);
     assertEq(roundInfo.transferTimelock, 0);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
-    assertEq(roundInfo.fundingCycleRound, 0);
+    assertEq(roundInfo.fundingCycleRound, 1);
     assertEq(roundInfo.afterRoundReservedRate, 1000);
     assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, true);
     assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT);
