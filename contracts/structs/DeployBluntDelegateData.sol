@@ -24,4 +24,5 @@ struct DeployBluntDelegateData {
   JBSplit[] afterRoundSplits;
   string tokenName;
   string tokenSymbol;
+  bool enforceSlicerCreation;
 }

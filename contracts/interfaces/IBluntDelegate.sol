@@ -22,9 +22,11 @@ interface IBluntDelegate is
 
   function claimSlices() external;
 
+  function setTokenMetadata(string memory tokenName_, string memory tokenSymbol_) external;
+
+  function transferToken(IERC20 token) external;
+
   function queueNextPhase() external;
 
   function closeRound() external;
-
-  function transferToken(IERC20 token) external;
 }

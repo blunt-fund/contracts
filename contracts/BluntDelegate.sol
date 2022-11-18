@@ -9,7 +9,7 @@ import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 /// @title Blunt Round data source for Juicebox projects, based on Slice protocol.
 /// @author jacopo <jacopo@slice.so>
 /// @author jango <jango.eth>
-/// @notice Rewards participants of a round with a part of reserved rate, using a slicer for distribution.
+/// @notice Funding rounds with pre-defined rules which reward contributors with tokens and slices.
 contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
@@ -22,6 +22,7 @@ contract BluntDelegate is IBluntDelegate {
   error ROUND_NOT_CLOSED();
   error NOT_PROJECT_OWNER();
   error ALREADY_QUEUED();
+  error TOKEN_NOT_SET();
 
   //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
@@ -144,9 +145,9 @@ contract BluntDelegate is IBluntDelegate {
     ID of the slicer related to the blunt round
     
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
-    uint152 is sufficient and saves gas by bit packing efficiently.
+    uint144 is sufficient and saves gas by bit packing efficiently.
   */
-  uint152 public slicerId;
+  uint144 public slicerId;
 
   /**
     @notice
@@ -159,6 +160,12 @@ contract BluntDelegate is IBluntDelegate {
     True if the round has been queued
   */
   bool public isQueued;
+
+  /**
+    @notice
+    True if a slicer is created when round closes successfully
+  */
+  bool public isSlicerToBeCreated;
 
   /**
     @notice
@@ -264,6 +271,8 @@ contract BluntDelegate is IBluntDelegate {
       tokenName,
       tokenSymbol,
       isRoundClosed,
+      isQueued,
+      isSlicerToBeCreated,
       slicerId
     );
   }
@@ -273,10 +282,15 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
-    @param _projectId The ID of the project for which this NFT should be minted in response to payments made. 
+    @param _projectId The ID of the project 
+    @param _duration Blunt round duration
     @param _deployBluntDelegateData Data required for deployment
   */
-  constructor(uint256 _projectId, DeployBluntDelegateData memory _deployBluntDelegateData) {
+  constructor(
+    uint256 _projectId,
+    uint256 _duration,
+    DeployBluntDelegateData memory _deployBluntDelegateData
+  ) {
     projectId = _projectId;
     directory = _deployBluntDelegateData.directory;
     tokenStore = _deployBluntDelegateData.tokenStore;
@@ -290,8 +304,22 @@ contract BluntDelegate is IBluntDelegate {
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
     transferTimelock = _deployBluntDelegateData.transferTimelock;
     afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
-    tokenName = _deployBluntDelegateData.tokenName;
-    tokenSymbol = _deployBluntDelegateData.tokenSymbol;
+
+    // Set token name and symbol
+    if (bytes(_deployBluntDelegateData.tokenName).length != 0)
+      tokenName = _deployBluntDelegateData.tokenName;
+    if (bytes(_deployBluntDelegateData.tokenSymbol).length != 0)
+      tokenSymbol = _deployBluntDelegateData.tokenSymbol;
+
+    // Set `isQueued` if FC duration is zero
+    if (_duration == 0) isQueued = true;
+
+    // Set `isSlicerToBeCreated` if the first split is reserved to the slicer
+    if (
+      _deployBluntDelegateData.enforceSlicerCreation ||
+      (_deployBluntDelegateData.afterRoundSplits.length != 0 &&
+        _deployBluntDelegateData.afterRoundSplits[0].beneficiary == address(0))
+    ) isSlicerToBeCreated = true;
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
@@ -347,9 +375,12 @@ contract BluntDelegate is IBluntDelegate {
     uint256 cap = hardCap != 0 ? hardCap : MAX_CONTRIBUTION;
     if (totalContributions > cap) revert CAP_REACHED();
 
-    /// Cannot overflow as totalContributions would overflow first
-    unchecked {
-      contributions[_data.beneficiary] += _data.amount.value;
+    /// If a slicer is to be created when round closes
+    if (isSlicerToBeCreated) {
+      /// Cannot overflow as totalContributions would overflow first
+      unchecked {
+        contributions[_data.beneficiary] += _data.amount.value;
+      }
     }
   }
 
@@ -381,7 +412,11 @@ contract BluntDelegate is IBluntDelegate {
     unchecked {
       /// Update totalContributions and contributions with amount redeemed
       totalContributions -= uint88(_data.reclaimedAmount.value);
-      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+
+      /// If a slicer is to be created when round closes
+      if (isSlicerToBeCreated) {
+        contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+      }
     }
   }
 
@@ -450,13 +485,11 @@ contract BluntDelegate is IBluntDelegate {
     Configure next FC to have 0 duration in order for `closeRound` to have immediate effect
   */
   function queueNextPhase() external override {
-    /// Get current FC data and metadata
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = controller
-      .currentFundingCycleOf(projectId);
-
-    /// Revert if current funding cycle has no duration set
-    if (fundingCycle.duration == 0 || isQueued) revert ALREADY_QUEUED();
+    if (isQueued) revert ALREADY_QUEUED();
     isQueued = true;
+
+    /// Get current FC data and metadata
+    (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
     /// Set JBFundingCycleData with duration 0 and null params
     JBFundingCycleData memory data = JBFundingCycleData({
@@ -480,6 +513,42 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice 
+    Update token metadata related to the project
+
+    @dev
+    Non null token name and symbol are required to close a round successfully
+  */
+  function setTokenMetadata(
+    string memory tokenName_,
+    string memory tokenSymbol_
+  ) external override {
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    if (isRoundClosed) revert ROUND_CLOSED();
+
+    tokenName = tokenName_;
+    tokenSymbol = tokenSymbol_;
+  }
+
+  /**
+    @notice 
+    Transfers the entire balance of an ERC20 token from this contract to the slicer if the round 
+    was closed successfully, otherwise the project owner.
+    Acts as safeguard if ERC20 tokens are mistakenly sent to this address, preventing them to end up locked.
+    
+    @dev Reverts if round is not closed.
+  */
+  function transferToken(IERC20 token) external override {
+    if (!isRoundClosed) revert ROUND_NOT_CLOSED();
+    uint256 slicerId_ = slicerId;
+
+    address to = totalContributions > target && slicerId_ != 0
+      ? sliceCore.slicers(slicerId_)
+      : projectOwner;
+    token.transfer(to, token.balanceOf(address(this)));
+  }
+
+  /**
+    @notice 
     Close blunt round if target has been reached. 
     Consists in minting slices to blunt delegate, reconfiguring next FC and transferring project NFT to projectOwner.
     If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
@@ -488,10 +557,7 @@ contract BluntDelegate is IBluntDelegate {
     Can only be called once by the appointed project owner.
   */
   function closeRound() external override {
-    /// Revert if not called by projectOwner
     if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
-
-    /// Revert if not called by projectOwner
     if (isRoundClosed) revert ROUND_CLOSED();
     isRoundClosed = true;
 
@@ -522,14 +588,26 @@ contract BluntDelegate is IBluntDelegate {
         ballot: IJBFundingCycleBallot(address(0))
       });
 
-      /// Create slicer, mint slices and issue project token
-      address slicerAddress = _mintSlicesToDelegate();
+      address currency;
+      // If token name and symbol have been set
+      if (bytes(tokenName).length != 0 && bytes(tokenSymbol).length != 0) {
+        /// Issue ERC20 project token and get contract address
+        currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
+      }
 
-      /// If first split beneficiary is unset, it's reserved to the slicer
-      if (afterRoundSplits[0].beneficiary == address(0)) {
-        /// Update slicer split
-        afterRoundSplits[0].beneficiary = payable(slicerAddress);
-        afterRoundSplits[0].preferClaimed = true;
+      /// If a slicer is to be created
+      if (isSlicerToBeCreated) {
+        /// Revert if currency hasn't been issued
+        if (currency == address(0)) revert TOKEN_NOT_SET();
+
+        /// Create slicer and mint slices to bluntDelegate
+        address slicerAddress = _mintSlicesToDelegate(currency);
+
+        if (afterRoundSplits.length != 0 && afterRoundSplits[0].beneficiary == address(0)) {
+          /// Update split with slicer address
+          afterRoundSplits[0].beneficiary = payable(slicerAddress);
+          afterRoundSplits[0].preferClaimed = true;
+        }
       }
 
       /// Format splits
@@ -556,10 +634,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice 
     Creates project's token, slicer and issues `slicesToMint` to this contract.
   */
-  function _mintSlicesToDelegate() private returns (address slicerAddress) {
-    /// Issue ERC20 project token and get address
-    address currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
-
+  function _mintSlicesToDelegate(address currency) private returns (address slicerAddress) {
     /// Calculate `slicesToMint`
     /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
     uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
@@ -585,21 +660,7 @@ contract BluntDelegate is IBluntDelegate {
       )
     );
 
-    slicerId = uint152(slicerId_);
-  }
-
-  /**
-    @notice 
-    Transfers the entire balance of an ERC20 token from this contract to the slicer if the round 
-    was closed successfully, otherwise the project owner.
-    
-    @dev Reverts if round is not closed.
-  */
-  function transferToken(IERC20 token) external {
-    if (!isRoundClosed) revert ROUND_NOT_CLOSED();
-
-    address to = totalContributions > target ? sliceCore.slicers(slicerId) : projectOwner;
-    token.transfer(to, token.balanceOf(address(this)));
+    slicerId = uint144(slicerId_);
   }
 
   /**
@@ -642,10 +703,3 @@ contract BluntDelegate is IBluntDelegate {
     return this.onERC721Received.selector;
   }
 }
-
-/// Note
-/// Slices have a max of `type(uint32).max`, so it's necessary to convert between value paid and slices, either during pay / redeem or during slice issuance.
-
-/// - Storing the VALUE sent on pay / redeem, and calculate slices during issuance, allows to have the most efficient + seamless logic. However consider an extreme scenario where `totalContributions` > 0 but all contributions are below `TOKENS_PER_SLICE`. This would result in no slices being minted even though the treasury has received money. The problem is present whenever the amount paid doesn't exactly correspond that which should've been contributed to get a number of slices, either in excess or in defect.
-/// - Designing so that slices are calculated during pay / redeem increases complexity and costs significantly, while adding a bunch of foot guns. I considered going down that road but realised it introduced other issues.
-/// - Proposed solution uses the former logic, but enforces `(_data.amount.value % TOKENS_PER_SLICE == 0)` so that there is no payment in excess. This will also be enforced on the frontend, but might require JB frontend to eventually adapt as well

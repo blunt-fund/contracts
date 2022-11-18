@@ -64,7 +64,7 @@ contract BluntDelegateProjectDeployer is
     projectId = controller.projects().count() + 1;
 
     // Deploy the data source contract.
-    address _delegateAddress = deployDelegateFor(projectId, _deployBluntDelegateData);
+    address _delegateAddress = deployDelegateFor(projectId, _launchProjectData.data.duration, _deployBluntDelegateData); 
 
     // Set the data source address as the data source of the provided metadata.
     _launchProjectData.metadata.dataSource = _delegateAddress;

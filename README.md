@@ -20,6 +20,31 @@ The slicer receives reserved rate tokens from future founding cycles and distrib
 
 > Note that it is not yet possible to create a blunt round for existing JB projects, only for new projects.
 
+## Funding Stages
+
+### Fundraise
+
+- Full redemptions
+- Token transfers disabled
+
+> The same conditions apply if a round closes without reaching the target.
+
+### Round closed successfully
+
+- Redemptions disabled
+- Token transfers enabled
+- Data source detached
+- Ownership transferred to appointed project owner
+
+FC configuration after round, to be reconfigured by new project owner as needed:
+
+- Payments paused
+- Reserved rate set as specified during round creation
+- 1M Token issuance rate
+- Unlimited FC duration
+- No discount rate
+- No delay reconfiguration strategy
+
 ## Learn more
 
 - [Slice protocol](https://slice.so)

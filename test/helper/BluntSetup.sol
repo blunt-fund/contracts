@@ -46,7 +46,6 @@ import '../../contracts/structs/JBLaunchProjectData.sol';
 import 'contracts/interfaces/ISliceCore.sol';
 import '../mocks/SliceCoreMock.sol';
 
-
 // Base contract for Juicebox system tests.
 //
 // Provides common functionality, such as deploying contracts on test setup.
@@ -64,8 +63,9 @@ contract BluntSetup is DSTestPlus {
   uint40 internal _transferTimelock = 0;
   uint16 internal _afterRoundReservedRate = 1000; // 10%
   uint256 internal _lockPeriod = 2 days;
-  string  internal _tokenName = 'tokenName';
-  string  internal _tokenSymbol = 'SYMBOL';
+  string internal _tokenName = 'tokenName';
+  string internal _tokenSymbol = 'SYMBOL';
+  bool internal _enforceSlicerCreation = false;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
@@ -271,7 +271,8 @@ contract BluntSetup is DSTestPlus {
       _afterRoundReservedRate,
       _afterRoundSplits,
       _tokenName,
-      _tokenSymbol
+      _tokenSymbol,
+      _enforceSlicerCreation
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);
