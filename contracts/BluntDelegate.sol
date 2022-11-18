@@ -273,10 +273,15 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
-    @param _projectId The ID of the project for which this NFT should be minted in response to payments made. 
+    @param _projectId The ID of the project 
+    @param _duration Blunt round duration
     @param _deployBluntDelegateData Data required for deployment
   */
-  constructor(uint256 _projectId, DeployBluntDelegateData memory _deployBluntDelegateData) {
+  constructor(
+    uint256 _projectId,
+    uint256 _duration,
+    DeployBluntDelegateData memory _deployBluntDelegateData
+  ) {
     projectId = _projectId;
     directory = _deployBluntDelegateData.directory;
     tokenStore = _deployBluntDelegateData.tokenStore;
@@ -292,6 +297,9 @@ contract BluntDelegate is IBluntDelegate {
     afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
     tokenName = _deployBluntDelegateData.tokenName;
     tokenSymbol = _deployBluntDelegateData.tokenSymbol;
+
+    // Set `isQueued` if FC duration is zero
+    if (_duration == 0) isQueued = true;
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
