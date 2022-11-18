@@ -488,6 +488,42 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice 
+    Update token metadata related to the project
+
+    @dev
+    Non null token name and symbol are required to close a round successfully
+  */
+  function setTokenMetadata(
+    string memory tokenName_,
+    string memory tokenSymbol_
+  ) external override {
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    if (isRoundClosed) revert ROUND_CLOSED();
+
+    tokenName = tokenName_;
+    tokenSymbol = tokenSymbol_;
+  }
+
+  /**
+    @notice 
+    Transfers the entire balance of an ERC20 token from this contract to the slicer if the round 
+    was closed successfully, otherwise the project owner.
+    Acts as safeguard if ERC20 tokens are mistakenly sent to this address, preventing them to end up locked.
+    
+    @dev Reverts if round is not closed.
+  */
+  function transferToken(IERC20 token) external override {
+    if (!isRoundClosed) revert ROUND_NOT_CLOSED();
+    uint256 slicerId_ = slicerId;
+
+    address to = totalContributions > target && slicerId_ != 0
+      ? sliceCore.slicers(slicerId_)
+      : projectOwner;
+    token.transfer(to, token.balanceOf(address(this)));
+  }
+
+  /**
+    @notice 
     Close blunt round if target has been reached. 
     Consists in minting slices to blunt delegate, reconfiguring next FC and transferring project NFT to projectOwner.
     If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
@@ -593,21 +629,7 @@ contract BluntDelegate is IBluntDelegate {
       )
     );
 
-    slicerId = uint152(slicerId_);
-  }
-
-  /**
-    @notice 
-    Transfers the entire balance of an ERC20 token from this contract to the slicer if the round 
-    was closed successfully, otherwise the project owner.
-    
-    @dev Reverts if round is not closed.
-  */
-  function transferToken(IERC20 token) external {
-    if (!isRoundClosed) revert ROUND_NOT_CLOSED();
-
-    address to = totalContributions > target ? sliceCore.slicers(slicerId) : projectOwner;
-    token.transfer(to, token.balanceOf(address(this)));
+    slicerId = uint144(slicerId_);
   }
 
   /**
