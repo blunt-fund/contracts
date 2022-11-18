@@ -9,7 +9,7 @@ import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 /// @title Blunt Round data source for Juicebox projects, based on Slice protocol.
 /// @author jacopo <jacopo@slice.so>
 /// @author jango <jango.eth>
-/// @notice Rewards participants of a round with a part of reserved rate, using a slicer for distribution.
+/// @notice Funding rounds with pre-defined rules which reward contributors with tokens and slices.
 contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
@@ -303,8 +303,12 @@ contract BluntDelegate is IBluntDelegate {
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
     transferTimelock = _deployBluntDelegateData.transferTimelock;
     afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
-    tokenName = _deployBluntDelegateData.tokenName;
-    tokenSymbol = _deployBluntDelegateData.tokenSymbol;
+
+    // Set token name and symbol
+    if (bytes(_deployBluntDelegateData.tokenName).length != 0)
+      tokenName = _deployBluntDelegateData.tokenName;
+    if (bytes(_deployBluntDelegateData.tokenSymbol).length != 0)
+      tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
     // Set `isQueued` if FC duration is zero
     if (_duration == 0) isQueued = true;
@@ -552,10 +556,7 @@ contract BluntDelegate is IBluntDelegate {
     Can only be called once by the appointed project owner.
   */
   function closeRound() external override {
-    /// Revert if not called by projectOwner
     if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
-
-    /// Revert if not called by projectOwner
     if (isRoundClosed) revert ROUND_CLOSED();
     isRoundClosed = true;
 
@@ -692,10 +693,3 @@ contract BluntDelegate is IBluntDelegate {
     return this.onERC721Received.selector;
   }
 }
-
-/// Note
-/// Slices have a max of `type(uint32).max`, so it's necessary to convert between value paid and slices, either during pay / redeem or during slice issuance.
-
-/// - Storing the VALUE sent on pay / redeem, and calculate slices during issuance, allows to have the most efficient + seamless logic. However consider an extreme scenario where `totalContributions` > 0 but all contributions are below `TOKENS_PER_SLICE`. This would result in no slices being minted even though the treasury has received money. The problem is present whenever the amount paid doesn't exactly correspond that which should've been contributed to get a number of slices, either in excess or in defect.
-/// - Designing so that slices are calculated during pay / redeem increases complexity and costs significantly, while adding a bunch of foot guns. I considered going down that road but realised it introduced other issues.
-/// - Proposed solution uses the former logic, but enforces `(_data.amount.value % TOKENS_PER_SLICE == 0)` so that there is no payment in excess. This will also be enforced on the frontend, but might require JB frontend to eventually adapt as well
