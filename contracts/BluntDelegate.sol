@@ -22,6 +22,7 @@ contract BluntDelegate is IBluntDelegate {
   error ROUND_NOT_CLOSED();
   error NOT_PROJECT_OWNER();
   error ALREADY_QUEUED();
+  error TOKEN_NOT_SET();
 
   //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
@@ -587,14 +588,26 @@ contract BluntDelegate is IBluntDelegate {
         ballot: IJBFundingCycleBallot(address(0))
       });
 
-      /// Create slicer, mint slices and issue project token
-      address slicerAddress = _mintSlicesToDelegate();
+      address currency;
+      // If token name and symbol have been set
+      if (bytes(tokenName).length != 0 && bytes(tokenSymbol).length != 0) {
+        /// Issue ERC20 project token and get contract address
+        currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
+      }
 
-      /// If first split beneficiary is unset, it's reserved to the slicer
-      if (afterRoundSplits[0].beneficiary == address(0)) {
-        /// Update slicer split
-        afterRoundSplits[0].beneficiary = payable(slicerAddress);
-        afterRoundSplits[0].preferClaimed = true;
+      /// If a slicer is to be created
+      if (isSlicerToBeCreated) {
+        /// Revert if currency hasn't been issued
+        if (currency == address(0)) revert TOKEN_NOT_SET();
+
+        /// Create slicer and mint slices to bluntDelegate
+        address slicerAddress = _mintSlicesToDelegate(currency);
+
+        if (afterRoundSplits.length != 0 && afterRoundSplits[0].beneficiary == address(0)) {
+          /// Update split with slicer address
+          afterRoundSplits[0].beneficiary = payable(slicerAddress);
+          afterRoundSplits[0].preferClaimed = true;
+        }
       }
 
       /// Format splits
@@ -621,10 +634,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice 
     Creates project's token, slicer and issues `slicesToMint` to this contract.
   */
-  function _mintSlicesToDelegate() private returns (address slicerAddress) {
-    /// Issue ERC20 project token and get address
-    address currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
-
+  function _mintSlicesToDelegate(address currency) private returns (address slicerAddress) {
     /// Calculate `slicesToMint`
     /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
     uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
