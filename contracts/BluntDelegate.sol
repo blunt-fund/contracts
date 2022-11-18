@@ -144,9 +144,9 @@ contract BluntDelegate is IBluntDelegate {
     ID of the slicer related to the blunt round
     
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
-    uint152 is sufficient and saves gas by bit packing efficiently.
+    uint144 is sufficient and saves gas by bit packing efficiently.
   */
-  uint152 public slicerId;
+  uint144 public slicerId;
 
   /**
     @notice
@@ -159,6 +159,12 @@ contract BluntDelegate is IBluntDelegate {
     True if the round has been queued
   */
   bool public isQueued;
+
+  /**
+    @notice
+    True if a slicer is created when round closes successfully
+  */
+  bool public isSlicerToBeCreated;
 
   /**
     @notice
@@ -264,6 +270,8 @@ contract BluntDelegate is IBluntDelegate {
       tokenName,
       tokenSymbol,
       isRoundClosed,
+      isQueued,
+      isSlicerToBeCreated,
       slicerId
     );
   }
