@@ -480,13 +480,11 @@ contract BluntDelegate is IBluntDelegate {
     Configure next FC to have 0 duration in order for `closeRound` to have immediate effect
   */
   function queueNextPhase() external override {
-    /// Get current FC data and metadata
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = controller
-      .currentFundingCycleOf(projectId);
-
-    /// Revert if current funding cycle has no duration set
-    if (fundingCycle.duration == 0 || isQueued) revert ALREADY_QUEUED();
+    if (isQueued) revert ALREADY_QUEUED();
     isQueued = true;
+
+    /// Get current FC data and metadata
+    (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
     /// Set JBFundingCycleData with duration 0 and null params
     JBFundingCycleData memory data = JBFundingCycleData({
