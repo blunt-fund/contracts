@@ -309,6 +309,13 @@ contract BluntDelegate is IBluntDelegate {
     // Set `isQueued` if FC duration is zero
     if (_duration == 0) isQueued = true;
 
+    // Set `isSlicerToBeCreated` if the first split is reserved to the slicer
+    if (
+      _deployBluntDelegateData.enforceSlicerCreation ||
+      (_deployBluntDelegateData.afterRoundSplits.length != 0 &&
+        _deployBluntDelegateData.afterRoundSplits[0].beneficiary == address(0))
+    ) isSlicerToBeCreated = true;
+
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
       afterRoundSplits.push(_deployBluntDelegateData.afterRoundSplits[i]);
@@ -363,9 +370,12 @@ contract BluntDelegate is IBluntDelegate {
     uint256 cap = hardCap != 0 ? hardCap : MAX_CONTRIBUTION;
     if (totalContributions > cap) revert CAP_REACHED();
 
-    /// Cannot overflow as totalContributions would overflow first
-    unchecked {
-      contributions[_data.beneficiary] += _data.amount.value;
+    /// If a slicer is to be created when round closes
+    if (isSlicerToBeCreated) {
+      /// Cannot overflow as totalContributions would overflow first
+      unchecked {
+        contributions[_data.beneficiary] += _data.amount.value;
+      }
     }
   }
 
@@ -397,7 +407,11 @@ contract BluntDelegate is IBluntDelegate {
     unchecked {
       /// Update totalContributions and contributions with amount redeemed
       totalContributions -= uint88(_data.reclaimedAmount.value);
-      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+
+      /// If a slicer is to be created when round closes
+      if (isSlicerToBeCreated) {
+        contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+      }
     }
   }
 
