@@ -27,19 +27,19 @@ contract BluntDelegateTest is BluntSetup {
     projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
 
     bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
-    hevm.deal(user, 1e21);
-    hevm.deal(user2, 1e21);
-    hevm.deal(_bluntProjectOwner, 1e21);
+    hevm.deal(user, 1e30);
+    hevm.deal(user2, 1e30);
+    hevm.deal(_bluntProjectOwner, 1e30);
   }
 
   function testConstructorConditions() public {
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     RoundInfo memory roundInfo = bluntDelegateAlt_.getRoundInfo();
     assertBoolEq(roundInfo.isQueued, true);
     assertBoolEq(roundInfo.isSlicerToBeCreated, false);
 
-    (, BluntDelegate bluntDelegateAlt2_) = _createDelegateAlt2();
+    (, BluntDelegate bluntDelegateAlt2_) = _createDelegateEnforcedSlicer();
     assertBoolEq(bluntDelegateAlt2_.isSlicerToBeCreated(), true);
   }
 
@@ -48,21 +48,21 @@ contract BluntDelegateTest is BluntSetup {
 
     assertEq(bluntDelegate.projectId(), projectId);
     assertEq(roundInfo.totalContributions, 0);
-    assertEq(roundInfo.target, 1 ether);
-    assertEq(roundInfo.hardCap, 10 ether);
-    assertEq(roundInfo.releaseTimelock, 0);
-    assertEq(roundInfo.transferTimelock, 0);
+    assertEq(roundInfo.target, _target);
+    assertEq(roundInfo.hardCap, _hardCap);
+    assertEq(roundInfo.releaseTimelock, _releaseTimelock);
+    assertEq(roundInfo.transferTimelock, _transferTimelock);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
     assertEq(roundInfo.fundingCycleRound, 1);
-    assertEq(roundInfo.afterRoundReservedRate, 1000);
+    assertEq(roundInfo.afterRoundReservedRate, _afterRoundReservedRate);
     assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, false);
     assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
     assertEq(roundInfo.afterRoundSplits[0].beneficiary, address(0));
     assertEq(roundInfo.afterRoundSplits[1].percent, 1000);
     assertEq(roundInfo.afterRoundSplits[1].beneficiary, address(1));
     assertApproxEq(roundInfo.afterRoundSplits[0].lockedUntil, block.timestamp + 2 days, 1);
-    assertEq(roundInfo.tokenName, 'tokenName');
-    assertEq(roundInfo.tokenSymbol, 'SYMBOL');
+    assertEq(roundInfo.tokenName, _tokenName);
+    assertEq(roundInfo.tokenSymbol, _tokenSymbol);
     assertBoolEq(roundInfo.isRoundClosed, false);
     assertBoolEq(roundInfo.isQueued, false);
     assertBoolEq(roundInfo.isSlicerToBeCreated, true);
@@ -142,7 +142,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testDidPayWithoutSlices() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     uint256 amount = 1e15;
     uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
@@ -197,7 +197,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testDidRedeemWithoutSlices() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     hevm.startPrank(user);
 
@@ -306,7 +306,7 @@ contract BluntDelegateTest is BluntSetup {
 
   function testTransferTokenToProjectOwnerWithoutSlicer() public {
     ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
@@ -350,6 +350,85 @@ contract BluntDelegateTest is BluntSetup {
     hevm.stopPrank();
 
     assertBoolEq(bluntDelegate.isRoundClosed(), true);
+    assertEq(bluntDelegate.slicerId(), 0);
+  }
+
+  function testcloseRoundAtZero_NoTarget() public {
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegateAlt_.closeRound();
+    hevm.stopPrank();
+
+    uint256 timestamp = block.timestamp;
+
+    assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
+
+    hevm.warp(100);
+
+    address owner = _jbProjects.ownerOf(projectId_);
+    assertEq(owner, address(bluntDelegateAlt_));
+
+    address currency = address(_jbTokenStore.tokenOf(projectId_));
+    assertEq(currency, address(0));
+
+    assertEq(bluntDelegate.slicerId(), 0);
+  }
+
+  function testcloseRoundSuccessfully_NoTarget() public {
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+
+    uint256 amount = 1e15;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId_,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    uint256 totalContributions = bluntDelegateAlt_.totalContributions();
+    hevm.warp(100);
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegateAlt_.closeRound();
+    hevm.stopPrank();
+
+    uint256 timestamp = block.timestamp;
+
+    assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
+
+    hevm.warp(100);
+
+    (
+      JBFundingCycle memory fundingCycle,
+      JBFundingCycleMetadata memory metadata
+    ) = _successfulRoundAssertions(projectId_);
+
+    address currency = address(_jbTokenStore.tokenOf(projectId_));
+    assertTrue(currency != address(0));
+
+    uint256 slicerId = bluntDelegateAlt_.slicerId();
+    assertTrue(slicerId != 0);
+    assertEq(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId), totalContributions / 1e15);
+
+    JBSplit[] memory splits = _jbSplitsStore.splitsOf({
+      _projectId: projectId_,
+      _domain: timestamp,
+      _group: 2
+    });
+    assertEq(splits.length, 2);
+    assertFalse(address(splits[0].beneficiary) == address(0));
+    assertBoolEq(splits[0].preferClaimed, true);
+    assertEq(splits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
+    assertTrue(splits[0].lockedUntil != 0);
+    assertEq(address(splits[1].beneficiary), address(1));
+    assertBoolEq(splits[1].preferClaimed, false);
+    assertEq(splits[1].percent, 1000);
+    assertEq(splits[1].lockedUntil, 0);
   }
 
   function testcloseRoundAboveTarget() public {
@@ -359,7 +438,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == 0);
 
-    uint256 amount = 1e18;
+    uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
@@ -384,22 +463,10 @@ contract BluntDelegateTest is BluntSetup {
     // Wait for the funding cycle to end
     hevm.warp(7 days + 100);
 
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
-      .currentFundingCycleOf(projectId);
-    assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
-    assertEq(fundingCycle.discountRate, 0);
-    assertEq(address(fundingCycle.ballot), address(0));
-    assertEq(metadata.reservedRate, _afterRoundReservedRate);
-    assertEq(metadata.redemptionRate, 0);
-    assertBoolEq(metadata.global.pauseTransfers, false);
-    assertBoolEq(metadata.pausePay, true);
-    assertBoolEq(metadata.useDataSourceForPay, false);
-    assertBoolEq(metadata.useDataSourceForRedeem, false);
-    assertEq(metadata.dataSource, address(0));
-
-    address owner = _jbProjects.ownerOf(projectId);
-    assertEq(owner, address(_bluntProjectOwner));
+    (
+      JBFundingCycle memory fundingCycle,
+      JBFundingCycleMetadata memory metadata
+    ) = _successfulRoundAssertions(projectId);
 
     currency = address(_jbTokenStore.tokenOf(projectId));
     assertTrue(currency != address(0));
@@ -425,7 +492,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testcloseRoundAboveTarget_withSlicer_notInSplits() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt2_) = _createDelegateAlt2();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt2_) = _createDelegateEnforcedSlicer();
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
     uint256 slicerId = bluntDelegateAlt2_.slicerId();
@@ -433,7 +500,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt2_), slicerId) == 0);
 
-    uint256 amount = 1e18;
+    uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -457,22 +524,10 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
-      .currentFundingCycleOf(projectId_);
-    assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
-    assertEq(fundingCycle.discountRate, 0);
-    assertEq(address(fundingCycle.ballot), address(0));
-    assertEq(metadata.reservedRate, _afterRoundReservedRate);
-    assertEq(metadata.redemptionRate, 0);
-    assertBoolEq(metadata.global.pauseTransfers, false);
-    assertBoolEq(metadata.pausePay, true);
-    assertBoolEq(metadata.useDataSourceForPay, false);
-    assertBoolEq(metadata.useDataSourceForRedeem, false);
-    assertEq(metadata.dataSource, address(0));
-
-    address owner = _jbProjects.ownerOf(projectId_);
-    assertEq(owner, address(_bluntProjectOwner));
+    (
+      JBFundingCycle memory fundingCycle,
+      JBFundingCycleMetadata memory metadata
+    ) = _successfulRoundAssertions(projectId_);
 
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
@@ -497,7 +552,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testcloseRoundAboveTarget_withoutSlicer() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
     uint256 slicerId = bluntDelegateAlt_.slicerId();
@@ -505,7 +560,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId) == 0);
 
-    uint256 amount = 1e18;
+    uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -517,7 +572,6 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    uint256 totalContributions = bluntDelegateAlt_.totalContributions();
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
@@ -529,22 +583,10 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
-      .currentFundingCycleOf(projectId_);
-    assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
-    assertEq(fundingCycle.discountRate, 0);
-    assertEq(address(fundingCycle.ballot), address(0));
-    assertEq(metadata.reservedRate, _afterRoundReservedRate);
-    assertEq(metadata.redemptionRate, 0);
-    assertBoolEq(metadata.global.pauseTransfers, false);
-    assertBoolEq(metadata.pausePay, true);
-    assertBoolEq(metadata.useDataSourceForPay, false);
-    assertBoolEq(metadata.useDataSourceForRedeem, false);
-    assertEq(metadata.dataSource, address(0));
-
-    address owner = _jbProjects.ownerOf(projectId_);
-    assertEq(owner, address(_bluntProjectOwner));
+    (
+      JBFundingCycle memory fundingCycle,
+      JBFundingCycleMetadata memory metadata
+    ) = _successfulRoundAssertions(projectId_);
 
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
@@ -566,7 +608,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testcloseRoundAboveTarget_withoutSlicer_withoutCurrency() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
     uint256 slicerId = bluntDelegateAlt_.slicerId();
@@ -574,7 +616,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId) == 0);
 
-    uint256 amount = 1e18;
+    uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -586,10 +628,9 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    uint256 totalContributions = bluntDelegateAlt_.totalContributions();
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
-    bluntDelegateAlt_.setTokenMetadata('','');
+    bluntDelegateAlt_.setTokenMetadata('', '');
     bluntDelegateAlt_.closeRound();
     hevm.stopPrank();
 
@@ -599,22 +640,10 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
-      .currentFundingCycleOf(projectId_);
-    assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
-    assertEq(fundingCycle.discountRate, 0);
-    assertEq(address(fundingCycle.ballot), address(0));
-    assertEq(metadata.reservedRate, _afterRoundReservedRate);
-    assertEq(metadata.redemptionRate, 0);
-    assertBoolEq(metadata.global.pauseTransfers, false);
-    assertBoolEq(metadata.pausePay, true);
-    assertBoolEq(metadata.useDataSourceForPay, false);
-    assertBoolEq(metadata.useDataSourceForRedeem, false);
-    assertEq(metadata.dataSource, address(0));
-
-    address owner = _jbProjects.ownerOf(projectId_);
-    assertEq(owner, address(_bluntProjectOwner));
+    (
+      JBFundingCycle memory fundingCycle,
+      JBFundingCycleMetadata memory metadata
+    ) = _successfulRoundAssertions(projectId_);
 
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertEq(currency, address(0));
@@ -775,6 +804,35 @@ contract BluntDelegateTest is BluntSetup {
     );
   }
 
+  function testRevert_didPay_noCap_maxReached() public {
+    (uint256 projectId_, ) = _createDelegateNoTargetNoCap();
+
+    uint256 amount = 4.2e6 ether;
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId_,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    amount = 1e15;
+    hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId_,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
   function testRevert_didRedeem_valueNotExact() public {
     hevm.startPrank(user);
 
@@ -804,7 +862,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_queueNextPhase_noNeedToQueue() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateAlt();
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
     hevm.warp(100);
     hevm.expectRevert(bytes4(keccak256('ALREADY_QUEUED()')));
     bluntDelegateAlt_.queueNextPhase();
@@ -845,7 +903,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_closeRound_tokenNotSet() public {
-    uint256 amount = 1e18;
+    uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
@@ -859,7 +917,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
-    bluntDelegate.setTokenMetadata('','');
+    bluntDelegate.setTokenMetadata('', '');
     hevm.expectRevert(bytes4(keccak256('TOKEN_NOT_SET()')));
     bluntDelegate.closeRound();
     hevm.stopPrank();
@@ -909,7 +967,7 @@ contract BluntDelegateTest is BluntSetup {
   ///////////////////////////////////////
 
   // Same as normal delegate, but unlimited duration and no slicer in the split
-  function _createDelegateAlt()
+  function _createDelegateWithoutSlicer()
     internal
     returns (uint256 _projectId, BluntDelegate _bluntDelegate)
   {
@@ -937,7 +995,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   // Same as alt delegate, but which enforces slicer slicer creation
-  function _createDelegateAlt2()
+  function _createDelegateEnforcedSlicer()
     internal
     returns (uint256 _projectId, BluntDelegate _bluntDelegate)
   {
@@ -963,5 +1021,44 @@ contract BluntDelegateTest is BluntSetup {
 
     _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
+  }
+
+  // Same as blunt delegate, but without target and hardcap
+  function _createDelegateNoTargetNoCap()
+    internal
+    returns (uint256 _projectId, BluntDelegate _bluntDelegate)
+  {
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    ) = _formatDeployData();
+
+    launchProjectData.data.duration = 0;
+    deployBluntDelegateData.target = 0;
+    deployBluntDelegateData.hardCap = 0;
+
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+    _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
+  }
+
+  function _successfulRoundAssertions(
+    uint256 projectId_
+  ) internal returns (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) {
+    (fundingCycle, metadata) = _jbController.currentFundingCycleOf(projectId_);
+
+    assertEq(fundingCycle.duration, 0);
+    assertEq(fundingCycle.weight, 1e24);
+    assertEq(fundingCycle.discountRate, 0);
+    assertEq(address(fundingCycle.ballot), address(0));
+    assertEq(metadata.reservedRate, _afterRoundReservedRate);
+    assertEq(metadata.redemptionRate, 0);
+    assertBoolEq(metadata.global.pauseTransfers, false);
+    assertBoolEq(metadata.pausePay, true);
+    assertBoolEq(metadata.useDataSourceForPay, false);
+    assertBoolEq(metadata.useDataSourceForRedeem, false);
+    assertEq(metadata.dataSource, address(0));
+
+    address owner = _jbProjects.ownerOf(projectId_);
+    assertEq(owner, address(_bluntProjectOwner));
   }
 }

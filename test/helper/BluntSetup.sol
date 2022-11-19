@@ -59,8 +59,8 @@ contract BluntSetup is DSTestPlus {
   address internal _caller = address(696969);
   uint88 internal _hardCap = 10 ether;
   uint88 internal _target = 1 ether;
-  uint40 internal _releaseTimelock = 0;
-  uint40 internal _transferTimelock = 0;
+  uint40 internal _releaseTimelock = 1;
+  uint40 internal _transferTimelock = 2;
   uint16 internal _afterRoundReservedRate = 1000; // 10%
   uint256 internal _lockPeriod = 2 days;
   string internal _tokenName = 'tokenName';

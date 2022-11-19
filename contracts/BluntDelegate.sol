@@ -561,8 +561,8 @@ contract BluntDelegate is IBluntDelegate {
     if (isRoundClosed) revert ROUND_CLOSED();
     isRoundClosed = true;
 
-    /// If target has been reached
-    if (totalContributions >= target) {
+    bool targetReached = totalContributions > target;
+    if (targetReached) {
       /// Get current JBFundingCycleMetadata
       (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
@@ -589,13 +589,14 @@ contract BluntDelegate is IBluntDelegate {
       });
 
       address currency;
-      // If token name and symbol have been set
-      if (bytes(tokenName).length != 0 && bytes(tokenSymbol).length != 0) {
-        /// Issue ERC20 project token and get contract address
-        currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
-      }
+        string memory tokenName_ = tokenName;
+        string memory tokenSymbol_ = tokenSymbol;
+        // If token name and symbol have been set
+        if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
+          /// Issue ERC20 project token and get contract address
+          currency = address(tokenStore.issueFor(projectId, tokenName_, tokenSymbol_));
+        }
 
-      /// If a slicer is to be created
       if (isSlicerToBeCreated) {
         /// Revert if currency hasn't been issued
         if (currency == address(0)) revert TOKEN_NOT_SET();
