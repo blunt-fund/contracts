@@ -25,6 +25,24 @@ contract BluntDelegate is IBluntDelegate {
   error TOKEN_NOT_SET();
 
   //*********************************************************************//
+  // ------------------------------ events ----------------------------- //
+  //*********************************************************************//
+  event RoundCreated(
+    DeployBluntDelegateData deployBluntDelegateData,
+    uint256 projectId,
+    uint256 duration,
+    uint256 currentFundingCycle
+  );
+  event Paid(address beneficiary, uint256 amount);
+  event Redeemed(address beneficiary, uint256 amount);
+  event ClaimedSlices(address beneficiary, uint256 amount);
+  event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
+  event Queued();
+  event TokenMetadataSet(string tokenName_, string tokenSymbol_);
+  event RoundClosed();
+  event SlicerCreated(uint256 slicerId_, address slicerAddress);
+
+  //*********************************************************************//
   // --------------- public immutable stored properties ---------------- //
   //*********************************************************************//
 
@@ -330,10 +348,14 @@ contract BluntDelegate is IBluntDelegate {
       }
     }
 
+    uint256 currentFundingCycle = _deployBluntDelegateData
+      .fundingCycleStore
+      .currentOf(_projectId)
+      .number + 1;
     /// Store current funding cycle
-    fundingCycleRound = uint40(
-      _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number + 1
-    );
+    fundingCycleRound = uint40(currentFundingCycle);
+
+    emit RoundCreated(_deployBluntDelegateData, _projectId, _duration, currentFundingCycle);
   }
 
   //*********************************************************************//
@@ -382,6 +404,8 @@ contract BluntDelegate is IBluntDelegate {
         contributions[_data.beneficiary] += _data.amount.value;
       }
     }
+
+    emit Paid(_data.beneficiary, _data.amount.value);
   }
 
   /**
@@ -418,6 +442,8 @@ contract BluntDelegate is IBluntDelegate {
         contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
       }
     }
+
+    emit Redeemed(_data.beneficiary, _data.reclaimedAmount.value);
   }
 
   /**
@@ -450,6 +476,8 @@ contract BluntDelegate is IBluntDelegate {
 
     /// Send slices to beneficiaries along with any earnings
     sliceCore.slicerBatchTransfer(address(this), beneficiaries, slicerId, amounts, false);
+
+    emit ClaimedSlicesBatch(beneficiaries, amounts);
   }
 
   /**
@@ -462,22 +490,18 @@ contract BluntDelegate is IBluntDelegate {
   function claimSlices() external override {
     if (slicerId == 0) revert SLICER_NOT_YET_CREATED();
 
-    /// Add reference to contributions for msg.sender
-    uint256 contribution = contributions[msg.sender];
+    /// Calculate amount to claim
+    uint256 amount = contributions[msg.sender] / TOKENS_PER_SLICE;
 
-    if (contribution != 0) {
+    if (amount != 0) {
       /// Update storage
       contributions[msg.sender] = 0;
 
       /// Send slices to beneficiary along with a proportional amount of tokens accrued
-      sliceCore.safeTransferFromUnreleased(
-        address(this),
-        msg.sender,
-        slicerId,
-        contribution / TOKENS_PER_SLICE,
-        ''
-      );
+      sliceCore.safeTransferFromUnreleased(address(this), msg.sender, slicerId, amount, '');
     }
+
+    emit ClaimedSlices(msg.sender, amount);
   }
 
   /**
@@ -509,6 +533,8 @@ contract BluntDelegate is IBluntDelegate {
       new JBFundAccessConstraints[](0),
       ''
     );
+
+    emit Queued();
   }
 
   /**
@@ -527,6 +553,8 @@ contract BluntDelegate is IBluntDelegate {
 
     tokenName = tokenName_;
     tokenSymbol = tokenSymbol_;
+
+    emit TokenMetadataSet(tokenName_, tokenSymbol_);
   }
 
   /**
@@ -561,8 +589,8 @@ contract BluntDelegate is IBluntDelegate {
     if (isRoundClosed) revert ROUND_CLOSED();
     isRoundClosed = true;
 
-    /// If target has been reached
-    if (totalContributions >= target) {
+    bool targetReached = totalContributions > target;
+    if (targetReached) {
       /// Get current JBFundingCycleMetadata
       (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
@@ -589,13 +617,14 @@ contract BluntDelegate is IBluntDelegate {
       });
 
       address currency;
+      string memory tokenName_ = tokenName;
+      string memory tokenSymbol_ = tokenSymbol;
       // If token name and symbol have been set
-      if (bytes(tokenName).length != 0 && bytes(tokenSymbol).length != 0) {
+      if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
         /// Issue ERC20 project token and get contract address
-        currency = address(tokenStore.issueFor(projectId, tokenName, tokenSymbol));
+        currency = address(tokenStore.issueFor(projectId, tokenName_, tokenSymbol_));
       }
 
-      /// If a slicer is to be created
       if (isSlicerToBeCreated) {
         /// Revert if currency hasn't been issued
         if (currency == address(0)) revert TOKEN_NOT_SET();
@@ -628,6 +657,8 @@ contract BluntDelegate is IBluntDelegate {
       /// Transfer project ownership to projectOwner
       projects.safeTransferFrom(address(this), projectOwner, projectId);
     }
+
+    emit RoundClosed();
   }
 
   /**
@@ -661,6 +692,8 @@ contract BluntDelegate is IBluntDelegate {
     );
 
     slicerId = uint144(slicerId_);
+
+    emit SlicerCreated(slicerId_, slicerAddress);
   }
 
   /**
