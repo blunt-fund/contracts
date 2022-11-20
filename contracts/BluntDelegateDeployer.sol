@@ -11,13 +11,13 @@ abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
 
   /** 
     @notice
-    Deploys a Tiered limited NFT reward data source.
+    Deploys a BluntDelegate data source.
 
     @param _projectId The ID of the project for which the data source should apply.
     @param _duration Blunt round duration
     @param _ethAddress WETH address on Uniswap
     @param _usdcAddress USDC address on Uniswap
-    @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a tiered limited NFT rewward data source.
+    @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a BluntDelegate data source.
 
     @return newDelegate The address of the newly deployed data source.
   */
