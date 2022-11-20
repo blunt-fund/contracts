@@ -40,7 +40,7 @@ contract SliceCoreMock is ERC1155 {
     _safeTransferFrom(from, to, id, amount, data);
   }
 
-  function slicers(uint256 slicerId) external view returns (address slicerAddress) {
+  function slicers(uint256) external pure returns (address slicerAddress) {
     slicerAddress = address(uint160(uint256(keccak256('slicerId'))));
   }
 }
