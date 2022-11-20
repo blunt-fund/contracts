@@ -112,6 +112,7 @@ contract BluntDelegate is IBluntDelegate {
   /** 
     @notice
     The minimum amount of contributions while this data source is in effect.
+    When `isTargetUsd` is enabled, it is a 6 point decimal number.
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
   uint88 public immutable target;
@@ -119,6 +120,7 @@ contract BluntDelegate is IBluntDelegate {
   /** 
     @notice
     The maximum amount of contributions while this data source is in effect. 
+    When `isHardcapUsd` is enabled, it is a 6 point decimal number.
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
   uint88 public immutable hardcap;
