@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegate.sol';
+import './interfaces/IPriceFeed.sol';
 import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 
@@ -57,6 +58,12 @@ contract BluntDelegate is IBluntDelegate {
     Max total contribution allowed, calculated from `TOKENS_PER_SLICE * type(uint32).max`
   */
   uint88 public constant MAX_CONTRIBUTION = 4.2e6 ether;
+
+  /**
+    @notice
+    Price feed instance
+  */
+  IPriceFeed public constant priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
 
   /**
     @notice
