@@ -24,6 +24,7 @@ contract BluntDelegate is IBluntDelegate {
   error NOT_PROJECT_OWNER();
   error ALREADY_QUEUED();
   error TOKEN_NOT_SET();
+  error CANNOT_ACCEPT_ERC1155();
 
   //*********************************************************************//
   // ------------------------------ events ----------------------------- //
@@ -336,6 +337,12 @@ contract BluntDelegate is IBluntDelegate {
 
     /// If a slicer is to be created when round closes
     if (isSlicerToBeCreated) {
+      // If it's the first contribution of the beneficiary, and it is a contract
+      if (contributions[_data.beneficiary] == 0 && _data.beneficiary.code.length != 0) {
+        // Revert if beneficiary doesn't accept ERC1155
+        _doSafeTransferAcceptanceCheck(_data.beneficiary);
+      }
+
       /// Cannot overflow as totalContributions would overflow first
       unchecked {
         contributions[_data.beneficiary] += _data.amount.value;
@@ -768,6 +775,24 @@ contract BluntDelegate is IBluntDelegate {
     }
 
     if (totalContributions > hardcap_) revert CAP_REACHED();
+  }
+
+  /**
+    @notice
+    See {ERC1155:_doSafeTransferAcceptanceCheck}
+  */
+  function _doSafeTransferAcceptanceCheck(address to) private {
+    try IERC1155Receiver(to).onERC1155Received(address(this), address(this), 1, 1, '') returns (
+      bytes4 response
+    ) {
+      if (response != this.onERC1155Received.selector) {
+        revert CANNOT_ACCEPT_ERC1155();
+      }
+    } catch Error(string memory reason) {
+      revert(reason);
+    } catch {
+      revert CANNOT_ACCEPT_ERC1155();
+    }
   }
 
   //*********************************************************************//

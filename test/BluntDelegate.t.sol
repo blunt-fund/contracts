@@ -978,6 +978,20 @@ contract BluntDelegateTest is BluntSetup {
     );
   }
 
+  function testRevert_didPay_cannotAcceptErc1155() public {
+    hevm.expectRevert(bytes4(keccak256('CANNOT_ACCEPT_ERC1155()')));
+    _jbETHPaymentTerminal.pay{value: _target}(
+      projectId,
+      0,
+      address(0),
+      address(_priceFeed),
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
   function testRevert_didPay_capReached() public {
     _jbETHPaymentTerminal.pay{value: _hardcap}(
       projectId,
