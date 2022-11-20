@@ -16,7 +16,7 @@ struct DeployBluntDelegateData {
   IJBController controller;
   ISliceCore sliceCore;
   address projectOwner;
-  uint88 hardCap;
+  uint88 hardcap;
   uint88 target;
   uint40 releaseTimelock;
   uint40 transferTimelock;
@@ -25,4 +25,6 @@ struct DeployBluntDelegateData {
   string tokenName;
   string tokenSymbol;
   bool enforceSlicerCreation;
+  bool isTargetUsd;
+  bool isHardcapUsd;
 }

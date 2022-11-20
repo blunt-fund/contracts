@@ -44,7 +44,7 @@ contract BluntDelegate is IBluntDelegate {
   event SlicerCreated(uint256 slicerId_, address slicerAddress);
 
   //*********************************************************************//
-  // --------------- public immutable stored properties ---------------- //
+  // ------------------------ immutable storage ------------------------ //
   //*********************************************************************//
 
   /**
@@ -87,6 +87,18 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
+    WETH address on Uniswap
+  */
+  address public immutable ethAddress;
+
+  /**
+    @notice
+    USDC address on Uniswap
+  */
+  address public immutable usdcAddress;
+
+  /**
+    @notice
     The ID of the project.
   */
   uint256 public immutable projectId;
@@ -109,7 +121,7 @@ contract BluntDelegate is IBluntDelegate {
     The maximum amount of contributions while this data source is in effect. 
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public immutable hardCap;
+  uint88 public immutable hardcap;
 
   /**  
     @notice
@@ -136,34 +148,27 @@ contract BluntDelegate is IBluntDelegate {
   */
   uint16 public immutable afterRoundReservedRate;
 
-  /** 
+  /**
     @notice
-    Project metadata splits to be enabled when a successful round is closed.
+    True if a target is expressed in USD
   */
-  JBSplit[] public afterRoundSplits;
-
-  /** 
-    @notice
-    Name of the token to be issued in case of a successful round
-  */
-  string public tokenName;
-
-  /** 
-    @notice
-    Symbol of the token to be issued in case of a successful round
-  */
-  string public tokenSymbol;
-
-  //*********************************************************************//
-  // ---------------- public mutable stored properties ----------------- //
-  //*********************************************************************//
+  bool public immutable isTargetUsd;
 
   /**
     @notice
-    Total contributions received during round
-    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
+    True if a hardcap is expressed in USD
   */
-  uint88 public totalContributions;
+  bool public immutable isHardcapUsd;
+
+  /**
+    @notice
+    True if a slicer is created when round closes successfully
+  */
+  bool public immutable isSlicerToBeCreated;
+
+  //*********************************************************************//
+  // ------------------------- mutable storage ------------------------- //
+  //*********************************************************************//
 
   /**
     @notice
@@ -173,6 +178,13 @@ contract BluntDelegate is IBluntDelegate {
     uint144 is sufficient and saves gas by bit packing efficiently.
   */
   uint144 public slicerId;
+
+  /**
+    @notice
+    Total contributions received during round
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
+  */
+  uint88 public totalContributions;
 
   /**
     @notice
@@ -186,11 +198,23 @@ contract BluntDelegate is IBluntDelegate {
   */
   bool public isQueued;
 
-  /**
+  /** 
     @notice
-    True if a slicer is created when round closes successfully
+    Name of the token to be issued in case of a successful round
   */
-  bool public isSlicerToBeCreated;
+  string public tokenName;
+
+  /** 
+    @notice
+    Symbol of the token to be issued in case of a successful round
+  */
+  string public tokenSymbol;
+
+  /** 
+    @notice
+    Project metadata splits to be enabled when a successful round is closed.
+  */
+  JBSplit[] public afterRoundSplits;
 
   /**
     @notice
@@ -199,124 +223,26 @@ contract BluntDelegate is IBluntDelegate {
   mapping(address => uint256) public contributions;
 
   //*********************************************************************//
-  // ------------------------- external views -------------------------- //
-  //*********************************************************************//
-
-  /**
-    @notice 
-    Part of IJBFundingCycleDataSource, this function gets called when the project receives a payment. It will set itself as the delegate to get a callback from the terminal.
-
-    @dev 
-    This function will revert if the contract calling it is not the store of one of the project's terminals. 
-
-    @param _data The Juicebox standard project payment data.
-
-    @return weight The weight that tokens should get minted in accordance to 
-    @return memo The memo that should be forwarded to the event.
-    @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
-  */
-  function payParams(
-    JBPayParamsData calldata _data
-  )
-    external
-    view
-    override
-    returns (
-      uint256 weight,
-      string memory memo,
-      JBPayDelegateAllocation[] memory delegateAllocations
-    )
-  {
-    JBPayDelegateAllocation[] memory allocations = new JBPayDelegateAllocation[](1);
-    allocations[0] = JBPayDelegateAllocation(IJBPayDelegate(address(this)), 0);
-
-    /// Forward the recieved weight and memo, and use this contract as a pay delegate.
-    return (_data.weight, _data.memo, allocations);
-  }
-
-  /**
-    @notice 
-    Part of IJBFundingCycleDataSource, this function gets called when a project's token holders redeem. It will return the standard properties.
-
-    @param _data The Juicebox standard project redemption data.
-
-    @return reclaimAmount The amount that should be reclaimed from the treasury.
-    @return memo The memo that should be forwarded to the event.
-    @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
-  */
-  function redeemParams(
-    JBRedeemParamsData calldata _data
-  )
-    external
-    view
-    override
-    returns (
-      uint256 reclaimAmount,
-      string memory memo,
-      JBRedemptionDelegateAllocation[] memory delegateAllocations
-    )
-  {
-    JBRedemptionDelegateAllocation[] memory allocations = new JBRedemptionDelegateAllocation[](1);
-    allocations[0] = JBRedemptionDelegateAllocation(IJBRedemptionDelegate(address(this)), 0);
-
-    /// Forward the recieved weight and memo, and use this contract as a redeem delegate.
-    return (_data.reclaimAmount.value, _data.memo, allocations);
-  }
-
-  /**
-    @notice
-    Indicates if this contract adheres to the specified interface.
-
-    @dev
-    See {IERC165-supportsInterface}.
-
-    @param _interfaceId The ID of the interface to check for adherance to.
-  */
-  function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
-    return
-      _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
-      _interfaceId == type(IJBPayDelegate).interfaceId;
-  }
-
-  /**
-    @notice
-    Returns info related to round.
-  */
-  function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
-    roundInfo = RoundInfo(
-      totalContributions,
-      target,
-      hardCap,
-      releaseTimelock,
-      transferTimelock,
-      projectOwner,
-      fundingCycleRound,
-      afterRoundReservedRate,
-      afterRoundSplits,
-      tokenName,
-      tokenSymbol,
-      isRoundClosed,
-      isQueued,
-      isSlicerToBeCreated,
-      slicerId
-    );
-  }
-
-  //*********************************************************************//
   // -------------------------- constructor ---------------------------- //
   //*********************************************************************//
 
   /**
     @param _projectId The ID of the project 
     @param _duration Blunt round duration
+    @param _ethAddress WETH address on Uniswap
+    @param _usdcAddress USDC address on Uniswap
     @param _deployBluntDelegateData Data required for deployment
   */
   constructor(
     uint256 _projectId,
     uint256 _duration,
+    address _ethAddress,
+    address _usdcAddress,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) {
     projectId = _projectId;
+    ethAddress = _ethAddress;
+    usdcAddress = _usdcAddress;
     directory = _deployBluntDelegateData.directory;
     tokenStore = _deployBluntDelegateData.tokenStore;
     fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
@@ -324,27 +250,28 @@ contract BluntDelegate is IBluntDelegate {
     controller = _deployBluntDelegateData.controller;
     sliceCore = _deployBluntDelegateData.sliceCore;
     projectOwner = _deployBluntDelegateData.projectOwner;
-    hardCap = _deployBluntDelegateData.hardCap;
-    target = _deployBluntDelegateData.target;
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
     transferTimelock = _deployBluntDelegateData.transferTimelock;
     afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
+    target = _deployBluntDelegateData.target;
+    isTargetUsd = _deployBluntDelegateData.isTargetUsd;
+    hardcap = _deployBluntDelegateData.hardcap;
+    isHardcapUsd = _deployBluntDelegateData.isHardcapUsd;
 
-    // Set token name and symbol
+    /// Set `isSlicerToBeCreated` if the first split is reserved to the slicer
+    isSlicerToBeCreated =
+      _deployBluntDelegateData.enforceSlicerCreation ||
+      (_deployBluntDelegateData.afterRoundSplits.length != 0 &&
+        _deployBluntDelegateData.afterRoundSplits[0].beneficiary == address(0));
+
+    /// Set token name and symbol
     if (bytes(_deployBluntDelegateData.tokenName).length != 0)
       tokenName = _deployBluntDelegateData.tokenName;
     if (bytes(_deployBluntDelegateData.tokenSymbol).length != 0)
       tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
-    // Set `isQueued` if FC duration is zero
+    /// Set `isQueued` if FC duration is zero
     if (_duration == 0) isQueued = true;
-
-    // Set `isSlicerToBeCreated` if the first split is reserved to the slicer
-    if (
-      _deployBluntDelegateData.enforceSlicerCreation ||
-      (_deployBluntDelegateData.afterRoundSplits.length != 0 &&
-        _deployBluntDelegateData.afterRoundSplits[0].beneficiary == address(0))
-    ) isSlicerToBeCreated = true;
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
@@ -355,10 +282,12 @@ contract BluntDelegate is IBluntDelegate {
       }
     }
 
-    uint256 currentFundingCycle = _deployBluntDelegateData
-      .fundingCycleStore
-      .currentOf(_projectId)
-      .number + 1;
+    uint256 currentFundingCycle;
+    unchecked {
+      currentFundingCycle =
+        _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number +
+        1;
+    }
     /// Store current funding cycle
     fundingCycleRound = uint40(currentFundingCycle);
 
@@ -400,9 +329,8 @@ contract BluntDelegate is IBluntDelegate {
     /// Update totalContributions and contributions with amount paid
     totalContributions += uint88(_data.amount.value);
 
-    /// Make sure totalContributions is below `hardCap` and `MAX_CONTRIBUTION`
-    uint256 cap = hardCap != 0 ? hardCap : MAX_CONTRIBUTION;
-    if (totalContributions > cap) revert CAP_REACHED();
+    /// Revert if `totalContributions` exceeds `hardcap` or `MAX_CONTRIBUTION`
+    _hardcapCheck();
 
     /// If a slicer is to be created when round closes
     if (isSlicerToBeCreated) {
@@ -576,9 +504,7 @@ contract BluntDelegate is IBluntDelegate {
     if (!isRoundClosed) revert ROUND_NOT_CLOSED();
     uint256 slicerId_ = slicerId;
 
-    address to = totalContributions > target && slicerId_ != 0
-      ? sliceCore.slicers(slicerId_)
-      : projectOwner;
+    address to = isTargetReached() && slicerId_ != 0 ? sliceCore.slicers(slicerId_) : projectOwner;
     token.transfer(to, token.balanceOf(address(this)));
   }
 
@@ -596,8 +522,7 @@ contract BluntDelegate is IBluntDelegate {
     if (isRoundClosed) revert ROUND_CLOSED();
     isRoundClosed = true;
 
-    bool targetReached = totalContributions > target;
-    if (targetReached) {
+    if (isTargetReached()) {
       /// Get current JBFundingCycleMetadata
       (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
 
@@ -626,7 +551,7 @@ contract BluntDelegate is IBluntDelegate {
       address currency;
       string memory tokenName_ = tokenName;
       string memory tokenSymbol_ = tokenSymbol;
-      // If token name and symbol have been set
+      /// If token name and symbol have been set
       if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
         /// Issue ERC20 project token and get contract address
         currency = address(tokenStore.issueFor(projectId, tokenName_, tokenSymbol_));
@@ -702,6 +627,150 @@ contract BluntDelegate is IBluntDelegate {
 
     emit SlicerCreated(slicerId_, slicerAddress);
   }
+
+  //*********************************************************************//
+  // ------------------------- external views -------------------------- //
+  //*********************************************************************//
+
+  /**
+    @notice 
+    Part of IJBFundingCycleDataSource, this function gets called when the project receives a payment. It will set itself as the delegate to get a callback from the terminal.
+
+    @dev 
+    This function will revert if the contract calling it is not the store of one of the project's terminals. 
+
+    @param _data The Juicebox standard project payment data.
+
+    @return weight The weight that tokens should get minted in accordance to 
+    @return memo The memo that should be forwarded to the event.
+    @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
+  */
+  function payParams(
+    JBPayParamsData calldata _data
+  )
+    external
+    view
+    override
+    returns (
+      uint256 weight,
+      string memory memo,
+      JBPayDelegateAllocation[] memory delegateAllocations
+    )
+  {
+    JBPayDelegateAllocation[] memory allocations = new JBPayDelegateAllocation[](1);
+    allocations[0] = JBPayDelegateAllocation(IJBPayDelegate(address(this)), 0);
+
+    /// Forward the recieved weight and memo, and use this contract as a pay delegate.
+    return (_data.weight, _data.memo, allocations);
+  }
+
+  /**
+    @notice 
+    Part of IJBFundingCycleDataSource, this function gets called when a project's token holders redeem. It will return the standard properties.
+
+    @param _data The Juicebox standard project redemption data.
+
+    @return reclaimAmount The amount that should be reclaimed from the treasury.
+    @return memo The memo that should be forwarded to the event.
+    @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
+  */
+  function redeemParams(
+    JBRedeemParamsData calldata _data
+  )
+    external
+    view
+    override
+    returns (
+      uint256 reclaimAmount,
+      string memory memo,
+      JBRedemptionDelegateAllocation[] memory delegateAllocations
+    )
+  {
+    JBRedemptionDelegateAllocation[] memory allocations = new JBRedemptionDelegateAllocation[](1);
+    allocations[0] = JBRedemptionDelegateAllocation(IJBRedemptionDelegate(address(this)), 0);
+
+    /// Forward the recieved weight and memo, and use this contract as a redeem delegate.
+    return (_data.reclaimAmount.value, _data.memo, allocations);
+  }
+
+  /**
+    @notice
+    Indicates if this contract adheres to the specified interface.
+
+    @dev
+    See {IERC165-supportsInterface}.
+
+    @param _interfaceId The ID of the interface to check for adherance to.
+  */
+  function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+    return
+      _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
+      _interfaceId == type(IJBPayDelegate).interfaceId;
+  }
+
+  /**
+    @notice
+    Returns info related to round.
+  */
+  function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
+    roundInfo = RoundInfo(
+      totalContributions,
+      target,
+      hardcap,
+      releaseTimelock,
+      transferTimelock,
+      projectOwner,
+      fundingCycleRound,
+      afterRoundReservedRate,
+      afterRoundSplits,
+      tokenName,
+      tokenSymbol,
+      isRoundClosed,
+      isQueued,
+      isSlicerToBeCreated,
+      slicerId
+    );
+  }
+
+  /**
+    @notice
+    Returns true if total contributions received surpass the round target.
+  */
+  function isTargetReached() public view override returns (bool) {
+    uint256 target_ = target;
+    if (target_ != 0) {
+      if (isTargetUsd) {
+        target_ = priceFeed.getQuote(uint128(target_), usdcAddress, ethAddress, 30 minutes);
+      }
+    }
+    return totalContributions > target_;
+  }
+
+  //*********************************************************************//
+  // ----------------------- private functions ------------------------- //
+  //*********************************************************************//
+
+  /**
+    @notice
+    Revert if total contributions received surpass the round hardcap.
+    Used in `didPay`
+  */
+  function _hardcapCheck() private view {
+    uint256 hardcap_ = hardcap;
+    if (hardcap_ != 0) {
+      if (isHardcapUsd) {
+        hardcap_ = priceFeed.getQuote(uint128(hardcap_), usdcAddress, ethAddress, 30 minutes);
+      }
+    } else {
+      hardcap_ = MAX_CONTRIBUTION;
+    }
+
+    if (totalContributions > hardcap_) revert CAP_REACHED();
+  }
+
+  //*********************************************************************//
+  // ------------------------------ hooks ------------------------------ //
+  //*********************************************************************//
 
   /**
    * @dev See `ERC1155Receiver`

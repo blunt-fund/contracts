@@ -27,6 +27,18 @@ contract BluntDelegateProjectDeployer is
   */
   uint64 public constant TOKENS_PER_ETH = 1e15;
 
+  /**
+    @notice
+    WETH address on Uniswap
+  */
+  address public immutable ethAddress;
+
+  /**
+    @notice
+    USDC address on Uniswap
+  */
+  address public immutable usdcAddress;
+
   /** 
     @notice
     The controller with which new projects should be deployed. 
@@ -37,10 +49,15 @@ contract BluntDelegateProjectDeployer is
   // -------------------------- constructor ---------------------------- //
   //*********************************************************************//
 
-  constructor(IJBController _controller, IJBOperatorStore _operatorStore)
-    JBOperatable(_operatorStore)
-  {
+  constructor(
+    IJBController _controller,
+    IJBOperatorStore _operatorStore,
+    address _ethAddress,
+    address _usdcAddress
+  ) JBOperatable(_operatorStore) {
     controller = _controller;
+    ethAddress = _ethAddress;
+    usdcAddress = _usdcAddress;
   }
 
   //*********************************************************************//
@@ -64,7 +81,13 @@ contract BluntDelegateProjectDeployer is
     projectId = controller.projects().count() + 1;
 
     // Deploy the data source contract.
-    address _delegateAddress = deployDelegateFor(projectId, _launchProjectData.data.duration, _deployBluntDelegateData); 
+    address _delegateAddress = deployDelegateFor(
+      projectId,
+      _launchProjectData.data.duration,
+      ethAddress,
+      usdcAddress,
+      _deployBluntDelegateData
+    );
 
     // Set the data source address as the data source of the provided metadata.
     _launchProjectData.metadata.dataSource = _delegateAddress;
@@ -77,9 +100,8 @@ contract BluntDelegateProjectDeployer is
     _launchProjectData.metadata.global.pauseTransfers = true;
 
     // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_ETH`
-    if (
-      _launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_ETH != 0
-    ) revert INVALID_TOKEN_ISSUANCE();
+    if (_launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_ETH != 0)
+      revert INVALID_TOKEN_ISSUANCE();
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);
@@ -96,9 +118,10 @@ contract BluntDelegateProjectDeployer is
     @param _owner The address to set as the owner of the project. The project ERC-721 will be owned by this address.
     @param _launchProjectData Data necessary to fulfill the transaction to launch the project.
   */
-  function _launchProjectFor(address _owner, JBLaunchProjectData memory _launchProjectData)
-    internal
-  {
+  function _launchProjectFor(
+    address _owner,
+    JBLaunchProjectData memory _launchProjectData
+  ) internal {
     controller.launchProjectFor(
       _owner,
       _launchProjectData.projectMetadata,

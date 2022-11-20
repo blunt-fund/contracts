@@ -29,4 +29,6 @@ interface IBluntDelegate is
   function queueNextPhase() external;
 
   function closeRound() external;
+
+  function isTargetReached() external view returns (bool);
 }

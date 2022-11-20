@@ -6,7 +6,7 @@ import '@jbx-protocol/juice-contracts-v3/contracts/structs/JBSplit.sol';
 struct RoundInfo {
   uint256 totalContributions;
   uint256 target;
-  uint256 hardCap;
+  uint256 hardcap;
   uint40 releaseTimelock;
   uint40 transferTimelock;
   address projectOwner;
