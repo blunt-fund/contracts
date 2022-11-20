@@ -44,7 +44,9 @@ import '../structs/JBPayDataSourceFundingCycleMetadata.sol';
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
 import 'contracts/interfaces/ISliceCore.sol';
+import 'contracts/interfaces/IPriceFeed.sol';
 import '../mocks/SliceCoreMock.sol';
+import '../mocks/PriceFeedMock.sol';
 
 // Base contract for Juicebox system tests.
 //
@@ -71,6 +73,7 @@ contract BluntSetup is DSTestPlus {
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
+  IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
 
   JBOperatorStore internal _jbOperatorStore;
   JBProjects internal _jbProjects;
@@ -203,6 +206,10 @@ contract BluntSetup is DSTestPlus {
     // ---- Deploy SliceCore Mock ----
     _sliceCore = ISliceCore(address(new SliceCoreMock()));
     hevm.label(address(_sliceCore), 'SliceCore');
+
+    // ---- Deploy Price Feed Mock ----
+    PriceFeedMock priceFeedMock = new PriceFeedMock();
+    hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
 
     // ---- general setup ----
     hevm.deal(_beneficiary, 100 ether);
