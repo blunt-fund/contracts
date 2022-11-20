@@ -7,7 +7,6 @@ import 'contracts/BluntDelegate.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
 
 contract BluntDelegateTest is BluntSetup {
-
   //*********************************************************************//
   // ----------------------------- storage ----------------------------- //
   //*********************************************************************//
@@ -45,7 +44,12 @@ contract BluntDelegateTest is BluntSetup {
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    bluntDeployer = new BluntDelegateProjectDeployer(_jbController, _jbOperatorStore);
+    bluntDeployer = new BluntDelegateProjectDeployer(
+      _jbController,
+      _jbOperatorStore,
+      address(uint160(uint256(keccak256('eth')))),
+      address(uint160(uint256(keccak256('usdc'))))
+    );
 
     (
       DeployBluntDelegateData memory deployBluntDelegateData,
@@ -81,7 +85,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(bluntDelegate.projectId(), projectId);
     assertEq(roundInfo.totalContributions, 0);
     assertEq(roundInfo.target, _target);
-    assertEq(roundInfo.hardCap, _hardCap);
+    assertEq(roundInfo.hardcap, _hardcap);
     assertEq(roundInfo.releaseTimelock, _releaseTimelock);
     assertEq(roundInfo.transferTimelock, _transferTimelock);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
@@ -848,12 +852,10 @@ contract BluntDelegateTest is BluntSetup {
     amounts[1] = 0;
     amounts[2] = 2e3;
 
-
     hevm.expectEmit(false, false, false, true);
     emit ClaimedSlicesBatch(beneficiaries, amounts);
     bluntDelegate.transferUnclaimedSlicesTo(beneficiaries);
   }
-
 
   function testEvent_queued() public {
     hevm.warp(100);
@@ -882,7 +884,6 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testEvent_closedRoundWithSlicer() public {
-
     uint256 amount = 1e18 + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
@@ -1241,7 +1242,7 @@ contract BluntDelegateTest is BluntSetup {
 
     launchProjectData.data.duration = 0;
     deployBluntDelegateData.target = 0;
-    deployBluntDelegateData.hardCap = 0;
+    deployBluntDelegateData.hardcap = 0;
 
     _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
