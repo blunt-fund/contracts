@@ -7,7 +7,6 @@ import 'contracts/BluntDelegate.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
 
 contract BluntDelegateTest is BluntSetup {
-
   //*********************************************************************//
   // ----------------------------- storage ----------------------------- //
   //*********************************************************************//
@@ -45,7 +44,12 @@ contract BluntDelegateTest is BluntSetup {
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    bluntDeployer = new BluntDelegateProjectDeployer(_jbController, _jbOperatorStore);
+    bluntDeployer = new BluntDelegateProjectDeployer(
+      _jbController,
+      _jbOperatorStore,
+      address(uint160(uint256(keccak256('eth')))),
+      address(uint160(uint256(keccak256('usdc'))))
+    );
 
     (
       DeployBluntDelegateData memory deployBluntDelegateData,
@@ -81,7 +85,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(bluntDelegate.projectId(), projectId);
     assertEq(roundInfo.totalContributions, 0);
     assertEq(roundInfo.target, _target);
-    assertEq(roundInfo.hardCap, _hardCap);
+    assertEq(roundInfo.hardcap, _hardcap);
     assertEq(roundInfo.releaseTimelock, _releaseTimelock);
     assertEq(roundInfo.transferTimelock, _transferTimelock);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
@@ -196,8 +200,7 @@ contract BluntDelegateTest is BluntSetup {
   function testDidRedeem() public {
     hevm.startPrank(user);
 
-    uint256 amount = 1e18;
-    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: _target}(
       projectId,
       0,
       address(0),
@@ -233,8 +236,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.startPrank(user);
 
-    uint256 amount = 1e18;
-    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: _target}(
       projectId_,
       0,
       address(0),
@@ -296,7 +298,7 @@ contract BluntDelegateTest is BluntSetup {
   function testTransferTokenToSlicer() public {
     ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
@@ -318,7 +320,7 @@ contract BluntDelegateTest is BluntSetup {
 
     address slicerAddress = address(uint160(uint256(keccak256('slicerId'))));
     assertEq(erc20.balanceOf(address(bluntDelegate)), 0);
-    assertEq(erc20.balanceOf(slicerAddress), 1e18);
+    assertEq(erc20.balanceOf(slicerAddress), _target);
   }
 
   function testTransferTokenToProjectOwner() public {
@@ -333,14 +335,14 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.transferToken(IERC20(erc20));
 
     assertEq(erc20.balanceOf(address(bluntDelegate)), 0);
-    assertEq(erc20.balanceOf(address(_bluntProjectOwner)), 1e18);
+    assertEq(erc20.balanceOf(address(_bluntProjectOwner)), _target);
   }
 
   function testTransferTokenToProjectOwnerWithoutSlicer() public {
     ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
     (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -361,7 +363,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.transferToken(IERC20(erc20));
 
     assertEq(erc20.balanceOf(address(bluntDelegate)), 0);
-    assertEq(erc20.balanceOf(address(_bluntProjectOwner)), 1e18);
+    assertEq(erc20.balanceOf(address(_bluntProjectOwner)), _target);
   }
 
   function testCloseRoundBelowTarget() public {
@@ -470,7 +472,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == 0);
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
@@ -532,7 +534,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt2_), slicerId) == 0);
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -592,7 +594,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId) == 0);
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -648,7 +650,7 @@ contract BluntDelegateTest is BluntSetup {
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId) == 0);
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -698,12 +700,10 @@ contract BluntDelegateTest is BluntSetup {
 
   function testTransferUnclaimedSlicesTo() public {
     // Make two payments
-    uint256 amount = 1e18;
     hevm.prank(user);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
-    amount = 2e18;
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), user, 0, false, '', '');
     hevm.prank(user2);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+    _jbETHPaymentTerminal.pay{value: _target * 2}(projectId, 0, address(0), user2, 0, false, '', '');
 
     // Close round
     hevm.warp(100);
@@ -720,7 +720,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.transferUnclaimedSlicesTo(beneficiaries);
 
     assertEq(_sliceCore.balanceOf(address(bluntDelegate), slicerId), 0);
-    assertEq(_sliceCore.balanceOf(user, slicerId), 1e18 / 1e15);
+    assertEq(_sliceCore.balanceOf(user, slicerId), _target / 1e15);
     assertEq(_sliceCore.balanceOf(user2, slicerId), 2e18 / 1e15);
     assertEq(_sliceCore.balanceOf(address(3), slicerId), 0);
     assertEq(bluntDelegate.contributions(user), 0);
@@ -729,12 +729,10 @@ contract BluntDelegateTest is BluntSetup {
 
   function testClaimSlices() public {
     // Make two payments
-    uint256 amount = 1e18;
     hevm.prank(user);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
-    amount = 2e18;
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), user, 0, false, '', '');
     hevm.prank(user2);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+    _jbETHPaymentTerminal.pay{value: _target*2}(projectId, 0, address(0), user2, 0, false, '', '');
 
     // Close round
     hevm.warp(100);
@@ -748,9 +746,32 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.claimSlices();
 
     assertEq(_sliceCore.balanceOf(address(bluntDelegate), slicerId), 2e18 / 1e15);
-    assertEq(_sliceCore.balanceOf(user, slicerId), 1e18 / 1e15);
+    assertEq(_sliceCore.balanceOf(user, slicerId), _target / 1e15);
     assertEq(bluntDelegate.contributions(user), 0);
     assertEq(bluntDelegate.contributions(user2), 2e18);
+  }
+
+  function testIsTargetReached() public {
+    assertBoolEq(bluntDelegate.isTargetReached(), false);
+    
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), msg.sender, 0, false, '', '');
+    assertBoolEq(bluntDelegate.isTargetReached(), false);
+    _jbETHPaymentTerminal.pay{value: 1e15}(projectId, 0, address(0), msg.sender, 0, false, '', '');
+    assertBoolEq(bluntDelegate.isTargetReached(), true);
+  }
+
+  function testIsTargetReachedUsd() public {
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateUsd();
+
+    uint128 targetUsd = 1e10;
+    uint256 convertedTarget = _priceFeed.getQuote(targetUsd, address(0), address(0), 0);
+    uint256 formattedTarget = convertedTarget - convertedTarget % 1e15;
+
+    assertBoolEq(bluntDelegateAlt_.isTargetReached(), false);
+    _jbETHPaymentTerminal.pay{value: formattedTarget}(projectId_, 0, address(0), msg.sender, 0, false, '', '');
+    assertBoolEq(bluntDelegateAlt_.isTargetReached(), false);
+    _jbETHPaymentTerminal.pay{value: 1e15}(projectId_, 0, address(0), msg.sender, 0, false, '', '');
+    assertBoolEq(bluntDelegateAlt_.isTargetReached(), true);
   }
 
   ///////////////////////////////////////
@@ -806,7 +827,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testEvent_ClaimedSlices() public {
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     hevm.prank(user);
     _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
 
@@ -825,12 +846,10 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testEvent_ClaimedSlicesBatch() public {
-    uint256 amount = 1e18;
     hevm.prank(user);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
-    amount = 2e18;
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), user, 0, false, '', '');
     hevm.prank(user2);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+    _jbETHPaymentTerminal.pay{value: _target * 2}(projectId, 0, address(0), user2, 0, false, '', '');
 
     // Close round
     hevm.warp(100);
@@ -848,12 +867,10 @@ contract BluntDelegateTest is BluntSetup {
     amounts[1] = 0;
     amounts[2] = 2e3;
 
-
     hevm.expectEmit(false, false, false, true);
     emit ClaimedSlicesBatch(beneficiaries, amounts);
     bluntDelegate.transferUnclaimedSlicesTo(beneficiaries);
   }
-
 
   function testEvent_queued() public {
     hevm.warp(100);
@@ -882,8 +899,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testEvent_closedRoundWithSlicer() public {
-
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
@@ -907,7 +923,7 @@ contract BluntDelegateTest is BluntSetup {
   function testEvent_closedRoundWithoutSlicer() public {
     (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
       0,
@@ -934,9 +950,8 @@ contract BluntDelegateTest is BluntSetup {
   function testRevert_didPay_RoundEnded() public {
     hevm.warp(7 days + 100);
 
-    uint256 amount = 1e18;
     hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
-    _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: _target}(
       projectId,
       0,
       address(0),
@@ -953,9 +968,8 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.closeRound();
     hevm.stopPrank();
 
-    uint256 amount = 1e18;
     hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
-    _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: _target}(
       projectId,
       0,
       address(0),
@@ -968,7 +982,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_didPay_valueNotExact() public {
-    uint256 amount = 1e18 + 1e14;
+    uint256 amount = _target + 1e14;
 
     hevm.expectRevert(bytes4(keccak256('VALUE_NOT_EXACT()')));
     _jbETHPaymentTerminal.pay{value: amount}(
@@ -984,8 +998,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_didPay_capReached() public {
-    uint256 amount = 1e19;
-    _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: _hardcap}(
       projectId,
       0,
       address(0),
@@ -996,10 +1009,40 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    amount = 1e15;
     hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
-    _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: 1e15}(
       projectId,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
+  function testRevert_didPay_capReachedUsd() public {
+    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateUsd();
+
+    uint128 capUsd = 1e12;
+    uint256 weiCap = _priceFeed.getQuote(capUsd, address(0), address(0), 0);
+    uint256 formattedCap = weiCap - weiCap % 1e15;
+
+    _jbETHPaymentTerminal.pay{value: formattedCap}(
+      projectId_,
+      0,
+      address(0),
+      msg.sender,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    hevm.expectRevert(bytes4(keccak256('CAP_REACHED()')));
+    _jbETHPaymentTerminal.pay{value: 1e15}(
+      projectId_,
       0,
       address(0),
       msg.sender,
@@ -1042,8 +1085,7 @@ contract BluntDelegateTest is BluntSetup {
   function testRevert_didRedeem_valueNotExact() public {
     hevm.startPrank(user);
 
-    uint256 amount = 1e18;
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), user, 0, false, '', '');
 
     uint256 tokensReturned = 1e11; // corresponds to 1e14 wei
     hevm.expectRevert(bytes4(keccak256('VALUE_NOT_EXACT()')));
@@ -1109,7 +1151,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_closeRound_tokenNotSet() public {
-    uint256 amount = 1e18 + 1e15;
+    uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
@@ -1131,12 +1173,10 @@ contract BluntDelegateTest is BluntSetup {
 
   function testRevert_transferUnclaimedSlicesTo_slicerNotCreated() public {
     // Make two payments
-    uint256 amount = 1e18;
     hevm.prank(user);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
-    amount = 2e18;
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), user, 0, false, '', '');
     hevm.prank(user2);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+    _jbETHPaymentTerminal.pay{value: _target*2}(projectId, 0, address(0), user2, 0, false, '', '');
 
     address[] memory beneficiaries = new address[](2);
     beneficiaries[0] = user;
@@ -1148,12 +1188,10 @@ contract BluntDelegateTest is BluntSetup {
 
   function testRevert_claimSlices_slicerNotCreated() public {
     // Make two payments
-    uint256 amount = 1e18;
     hevm.prank(user);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
-    amount = 2e18;
+    _jbETHPaymentTerminal.pay{value: _target}(projectId, 0, address(0), user, 0, false, '', '');
     hevm.prank(user2);
-    _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user2, 0, false, '', '');
+    _jbETHPaymentTerminal.pay{value: _target*2}(projectId, 0, address(0), user2, 0, false, '', '');
 
     hevm.startPrank(user);
     hevm.expectRevert(bytes4(keccak256('SLICER_NOT_YET_CREATED()')));
@@ -1241,7 +1279,27 @@ contract BluntDelegateTest is BluntSetup {
 
     launchProjectData.data.duration = 0;
     deployBluntDelegateData.target = 0;
-    deployBluntDelegateData.hardCap = 0;
+    deployBluntDelegateData.hardcap = 0;
+
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+    _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
+  }
+
+  // Same as blunt delegate, but with target and hardcap in USD
+  function _createDelegateUsd()
+    internal
+    returns (uint256 _projectId, BluntDelegate _bluntDelegate)
+  {
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    ) = _formatDeployData();
+
+    launchProjectData.data.duration = 0;
+    deployBluntDelegateData.target = 1e10; // 10k USD
+    deployBluntDelegateData.hardcap = 1e12; // 1M USD
+    deployBluntDelegateData.isTargetUsd = true;
+    deployBluntDelegateData.isHardcapUsd = true;
 
     _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));

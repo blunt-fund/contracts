@@ -10,7 +10,12 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    bluntDeployer = new BluntDelegateProjectDeployer(_jbController, _jbOperatorStore);
+    bluntDeployer = new BluntDelegateProjectDeployer(
+      _jbController,
+      _jbOperatorStore,
+      address(uint160(uint256(keccak256('eth')))),
+      address(uint160(uint256(keccak256('usdc'))))
+    );
   }
 
   function testLaunchProject() public {

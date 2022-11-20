@@ -44,7 +44,9 @@ import '../structs/JBPayDataSourceFundingCycleMetadata.sol';
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
 import 'contracts/interfaces/ISliceCore.sol';
+import 'contracts/interfaces/IPriceFeed.sol';
 import '../mocks/SliceCoreMock.sol';
+import '../mocks/PriceFeedMock.sol';
 
 // Base contract for Juicebox system tests.
 //
@@ -57,7 +59,7 @@ contract BluntSetup is DSTestPlus {
   address internal _projectOwner = address(123);
   address internal _beneficiary = address(69420);
   address internal _caller = address(696969);
-  uint88 internal _hardCap = 10 ether;
+  uint88 internal _hardcap = 10 ether;
   uint88 internal _target = 1 ether;
   uint40 internal _releaseTimelock = 1;
   uint40 internal _transferTimelock = 2;
@@ -66,9 +68,12 @@ contract BluntSetup is DSTestPlus {
   string internal _tokenName = 'tokenName';
   string internal _tokenSymbol = 'SYMBOL';
   bool internal _enforceSlicerCreation = false;
+  bool internal _isTargetUsd = false;
+  bool internal _isHardcapUsd = false;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
+  IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
 
   JBOperatorStore internal _jbOperatorStore;
   JBProjects internal _jbProjects;
@@ -202,6 +207,10 @@ contract BluntSetup is DSTestPlus {
     _sliceCore = ISliceCore(address(new SliceCoreMock()));
     hevm.label(address(_sliceCore), 'SliceCore');
 
+    // ---- Deploy Price Feed Mock ----
+    PriceFeedMock priceFeedMock = new PriceFeedMock();
+    hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
+
     // ---- general setup ----
     hevm.deal(_beneficiary, 100 ether);
     hevm.deal(_projectOwner, 100 ether);
@@ -264,7 +273,7 @@ contract BluntSetup is DSTestPlus {
       _jbController,
       _sliceCore,
       _bluntProjectOwner,
-      _hardCap,
+      _hardcap,
       _target,
       _releaseTimelock,
       _transferTimelock,
@@ -272,7 +281,9 @@ contract BluntSetup is DSTestPlus {
       _afterRoundSplits,
       _tokenName,
       _tokenSymbol,
-      _enforceSlicerCreation
+      _enforceSlicerCreation,
+      _isTargetUsd,
+      _isHardcapUsd
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);
