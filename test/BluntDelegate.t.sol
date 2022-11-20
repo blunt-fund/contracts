@@ -340,7 +340,7 @@ contract BluntDelegateTest is BluntSetup {
 
   function testTransferTokenToProjectOwnerWithoutSlicer() public {
     ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
+    (uint256 projectId_, ) = _createDelegateWithoutSlicer();
 
     uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
@@ -395,8 +395,6 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegateAlt_.closeRound();
     hevm.stopPrank();
 
-    uint256 timestamp = block.timestamp;
-
     assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
 
     hevm.warp(100);
@@ -437,10 +435,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (
-      JBFundingCycle memory fundingCycle,
-      JBFundingCycleMetadata memory metadata
-    ) = _successfulRoundAssertions(projectId_);
+    _successfulRoundAssertions(projectId_);
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
@@ -497,10 +492,7 @@ contract BluntDelegateTest is BluntSetup {
     // Wait for the funding cycle to end
     hevm.warp(7 days + 100);
 
-    (
-      JBFundingCycle memory fundingCycle,
-      JBFundingCycleMetadata memory metadata
-    ) = _successfulRoundAssertions(projectId);
+    _successfulRoundAssertions(projectId);
 
     currency = address(_jbTokenStore.tokenOf(projectId));
     assertTrue(currency != address(0));
@@ -558,10 +550,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (
-      JBFundingCycle memory fundingCycle,
-      JBFundingCycleMetadata memory metadata
-    ) = _successfulRoundAssertions(projectId_);
+    _successfulRoundAssertions(projectId_);
 
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
@@ -617,10 +606,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (
-      JBFundingCycle memory fundingCycle,
-      JBFundingCycleMetadata memory metadata
-    ) = _successfulRoundAssertions(projectId_);
+    _successfulRoundAssertions(projectId_);
 
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
@@ -674,10 +660,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.warp(100);
 
-    (
-      JBFundingCycle memory fundingCycle,
-      JBFundingCycleMetadata memory metadata
-    ) = _successfulRoundAssertions(projectId_);
+    _successfulRoundAssertions(projectId_);
 
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertEq(currency, address(0));
@@ -783,7 +766,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.expectEmit(false, false, false, true);
     emit Paid(msg.sender, amount);
-    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
       address(0),
@@ -799,7 +782,7 @@ contract BluntDelegateTest is BluntSetup {
     hevm.startPrank(user);
 
     uint256 amount = 1e15;
-    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
+    _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
       0,
       address(0),
@@ -812,7 +795,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.expectEmit(false, false, false, true);
     emit Redeemed(user, amount);
-    uint256 reclaimAmount = _jbETHPaymentTerminal.redeemTokensOf(
+     _jbETHPaymentTerminal.redeemTokensOf(
       user,
       projectId,
       amount / 1000,
@@ -836,8 +819,6 @@ contract BluntDelegateTest is BluntSetup {
     hevm.startPrank(_bluntProjectOwner);
     bluntDelegate.closeRound();
     hevm.stopPrank();
-
-    uint256 slicerId = bluntDelegate.slicerId();
 
     hevm.expectEmit(false, false, false, true);
     emit ClaimedSlices(user, amount / 1e15);
@@ -921,7 +902,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testEvent_closedRoundWithoutSlicer() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
+    (uint256 projectId_, ) = _createDelegateWithoutSlicer();
 
     uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
@@ -997,6 +978,20 @@ contract BluntDelegateTest is BluntSetup {
     );
   }
 
+  function testRevert_didPay_cannotAcceptErc1155() public {
+    hevm.expectRevert(bytes4(keccak256('CANNOT_ACCEPT_ERC1155()')));
+    _jbETHPaymentTerminal.pay{value: _target}(
+      projectId,
+      0,
+      address(0),
+      address(_priceFeed),
+      0,
+      false,
+      '',
+      ''
+    );
+  }
+
   function testRevert_didPay_capReached() public {
     _jbETHPaymentTerminal.pay{value: _hardcap}(
       projectId,
@@ -1023,7 +1018,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_didPay_capReachedUsd() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateUsd();
+    (uint256 projectId_, ) = _createDelegateUsd();
 
     uint128 capUsd = 1e12;
     uint256 weiCap = _priceFeed.getQuote(capUsd, address(0), address(0), 0);
@@ -1110,7 +1105,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_queueNextPhase_noNeedToQueue() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
     hevm.warp(100);
     hevm.expectRevert(bytes4(keccak256('ALREADY_QUEUED()')));
     bluntDelegateAlt_.queueNextPhase();
