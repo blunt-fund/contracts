@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import './BluntDelegate.sol';
 import './interfaces/IBluntDelegateDeployer.sol';
 
-abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
+contract BluntDelegateDeployer is IBluntDelegateDeployer {
   //*********************************************************************//
   // ---------------------- external transactions ---------------------- //
   //*********************************************************************//
@@ -29,7 +29,7 @@ abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
     address _ethAddress,
     address _usdcAddress,
     DeployBluntDelegateData memory _deployBluntDelegateData
-  ) internal returns (address newDelegate) {
+  ) external returns (address newDelegate) {
     newDelegate = address(
       new BluntDelegate(
         _controller,
