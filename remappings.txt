@@ -5,3 +5,4 @@ prb-math=node_modules/prb-math/
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 solmate/=lib/solmate/src/
+create3-factory=lib/create3-factory/src/
