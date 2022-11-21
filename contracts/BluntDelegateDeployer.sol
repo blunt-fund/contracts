@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import './BluntDelegate.sol';
 import './interfaces/IBluntDelegateDeployer.sol';
 
-abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
+contract BluntDelegateDeployer is IBluntDelegateDeployer {
   //*********************************************************************//
   // ---------------------- external transactions ---------------------- //
   //*********************************************************************//
@@ -13,6 +13,7 @@ abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
     @notice
     Deploys a BluntDelegate data source.
 
+    @param _controller JBController address
     @param _projectId The ID of the project for which the data source should apply.
     @param _duration Blunt round duration
     @param _ethAddress WETH address on Uniswap
@@ -22,14 +23,22 @@ abstract contract BluntDelegateDeployer is IBluntDelegateDeployer {
     @return newDelegate The address of the newly deployed data source.
   */
   function deployDelegateFor(
+    IJBController _controller,
     uint256 _projectId,
     uint256 _duration,
     address _ethAddress,
     address _usdcAddress,
     DeployBluntDelegateData memory _deployBluntDelegateData
-  ) internal returns (address newDelegate) {
+  ) external returns (address newDelegate) {
     newDelegate = address(
-      new BluntDelegate(_projectId, _duration, _ethAddress, _usdcAddress, _deployBluntDelegateData)
+      new BluntDelegate(
+        _controller,
+        _projectId,
+        _duration,
+        _ethAddress,
+        _usdcAddress,
+        _deployBluntDelegateData
+      )
     );
 
     emit DelegateDeployed(_projectId, newDelegate);

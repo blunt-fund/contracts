@@ -1,9 +1,12 @@
-[submodule "lib/forge-std"]
-	path = lib/forge-std
-	url = https://github.com/brockelmore/forge-std
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/transmissions11/solmate
 [submodule "lib/ds-test"]
 	path = lib/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "lib/create3-factory"]
+	path = lib/create3-factory
+	url = https://github.com/zeframlou/create3-factory
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/brockelmore/forge-std

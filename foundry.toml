@@ -1,8 +1,11 @@
 [profile.default]
-libs = ['lib']
-out = 'out'
+optimizer_runs = 5000
 src = 'contracts'
-test = 'test'
-script = 'scripts'
 
-# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+[rpc_endpoints]
+goerli = "${RPC_URL_GOERLI}"
+mainnet = "${RPC_URL_MAINNET}"
+
+[etherscan]
+goerli = {key = "${ETHERSCAN_API_KEY}", url = "https://api-goerli.etherscan.io/api"}
+mainnet = {key = "${ETHERSCAN_API_KEY}"}

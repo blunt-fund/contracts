@@ -3,14 +3,19 @@ pragma solidity 0.8.17;
 
 import './helper/BluntSetup.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
+import 'contracts/BluntDelegateDeployer.sol';
+import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 
 contract BluntDelegateProjectDeployerTest is BluntSetup {
   BluntDelegateProjectDeployer public bluntDeployer;
 
   function setUp() public virtual override {
     BluntSetup.setUp();
+    
+    IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
 
     bluntDeployer = new BluntDelegateProjectDeployer(
+      delegateDeployer,
       _jbController,
       _jbOperatorStore,
       address(uint160(uint256(keccak256('eth')))),

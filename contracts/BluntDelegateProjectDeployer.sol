@@ -5,10 +5,8 @@ import '@jbx-protocol/juice-contracts-v3/contracts/abstract/JBOperatable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
-import './BluntDelegateDeployer.sol';
 
 contract BluntDelegateProjectDeployer is
-  BluntDelegateDeployer,
   IBluntDelegateProjectDeployer,
   JBOperatable
 {
@@ -35,7 +33,7 @@ contract BluntDelegateProjectDeployer is
 
   /**
     @notice
-    USDC address on Uniswap
+    USDC address on Uniswap 
   */
   address public immutable usdcAddress;
 
@@ -45,16 +43,24 @@ contract BluntDelegateProjectDeployer is
   */
   IJBController public immutable override controller;
 
+  /** 
+    @notice
+    The contract responsible for deploying the delegate.
+  */
+  IBluntDelegateDeployer public immutable override delegateDeployer;
+
   //*********************************************************************//
   // -------------------------- constructor ---------------------------- //
   //*********************************************************************//
 
   constructor(
+    IBluntDelegateDeployer _delegateDeployer,
     IJBController _controller,
     IJBOperatorStore _operatorStore,
     address _ethAddress,
     address _usdcAddress
   ) JBOperatable(_operatorStore) {
+    delegateDeployer = _delegateDeployer;
     controller = _controller;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
@@ -81,7 +87,8 @@ contract BluntDelegateProjectDeployer is
     projectId = controller.projects().count() + 1;
 
     // Deploy the data source contract.
-    address _delegateAddress = deployDelegateFor(
+    address _delegateAddress = delegateDeployer.deployDelegateFor(
+      controller,
       projectId,
       _launchProjectData.data.duration,
       ethAddress,
