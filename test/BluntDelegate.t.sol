@@ -4,7 +4,9 @@ pragma solidity 0.8.17;
 import './helper/BluntSetup.sol';
 import './mocks/ERC20Mock.sol';
 import 'contracts/BluntDelegate.sol';
+import 'contracts/BluntDelegateDeployer.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
+import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 
 contract BluntDelegateTest is BluntSetup {
   //*********************************************************************//
@@ -44,7 +46,9 @@ contract BluntDelegateTest is BluntSetup {
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    bluntDeployer = new BluntDelegateProjectDeployer(
+    IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
+
+    bluntDeployer = new BluntDelegateProjectDeployer(delegateDeployer ,
       _jbController,
       _jbOperatorStore,
       address(uint160(uint256(keccak256('eth')))),

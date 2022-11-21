@@ -267,7 +267,6 @@ contract BluntSetup is DSTestPlus {
 
     deployBluntDelegateData = DeployBluntDelegateData(
       _jbDirectory,
-      _jbTokenStore,
       _jbFundingCycleStore,
       _sliceCore,
       _bluntProjectOwner,
