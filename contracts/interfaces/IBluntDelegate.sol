@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBFundingCycleDataSource.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
 import '../structs/Contribution.sol';
 import '../structs/DeployBluntDelegateData.sol';
 import '../structs/RoundInfo.sol';

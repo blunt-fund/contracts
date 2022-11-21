@@ -269,8 +269,6 @@ contract BluntSetup is DSTestPlus {
       _jbDirectory,
       _jbTokenStore,
       _jbFundingCycleStore,
-      _jbProjects,
-      _jbController,
       _sliceCore,
       _bluntProjectOwner,
       _hardcap,

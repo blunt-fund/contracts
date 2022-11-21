@@ -72,11 +72,7 @@ contract BluntDelegate is IBluntDelegate {
   */
   IJBDirectory public immutable directory;
 
-  IJBTokenStore public immutable tokenStore;
-
   IJBFundingCycleStore public immutable fundingCycleStore;
-
-  IJBProjects public immutable projects;
 
   IJBController public immutable controller;
 
@@ -230,6 +226,7 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
+    @param _controller JBController address
     @param _projectId The ID of the project 
     @param _duration Blunt round duration
     @param _ethAddress WETH address on Uniswap
@@ -237,6 +234,7 @@ contract BluntDelegate is IBluntDelegate {
     @param _deployBluntDelegateData Data required for deployment
   */
   constructor(
+    IJBController _controller,
     uint256 _projectId,
     uint256 _duration,
     address _ethAddress,
@@ -246,11 +244,9 @@ contract BluntDelegate is IBluntDelegate {
     projectId = _projectId;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
+    controller = _controller;
     directory = _deployBluntDelegateData.directory;
-    tokenStore = _deployBluntDelegateData.tokenStore;
     fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
-    projects = _deployBluntDelegateData.projects;
-    controller = _deployBluntDelegateData.controller;
     sliceCore = _deployBluntDelegateData.sliceCore;
     projectOwner = _deployBluntDelegateData.projectOwner;
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
@@ -563,7 +559,7 @@ contract BluntDelegate is IBluntDelegate {
       /// If token name and symbol have been set
       if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
         /// Issue ERC20 project token and get contract address
-        currency = address(tokenStore.issueFor(projectId, tokenName_, tokenSymbol_));
+        currency = address(controller.tokenStore().issueFor(projectId, tokenName_, tokenSymbol_));
       }
 
       if (isSlicerToBeCreated) {
@@ -596,7 +592,7 @@ contract BluntDelegate is IBluntDelegate {
       );
 
       /// Transfer project ownership to projectOwner
-      projects.safeTransferFrom(address(this), projectOwner, projectId);
+      directory.projects().safeTransferFrom(address(this), projectOwner, projectId);
     }
 
     emit RoundClosed();

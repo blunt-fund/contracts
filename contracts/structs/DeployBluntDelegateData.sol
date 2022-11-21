@@ -3,17 +3,12 @@ pragma solidity 0.8.17;
 
 import '../interfaces/ISliceCore.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBDirectory.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBTokenStore.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBFundingCycleStore.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/structs/JBGroupedSplits.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/structs/JBSplit.sol';
 
 struct DeployBluntDelegateData {
   IJBDirectory directory;
-  IJBTokenStore tokenStore;
   IJBFundingCycleStore fundingCycleStore;
-  IJBProjects projects;
-  IJBController controller;
   ISliceCore sliceCore;
   address projectOwner;
   uint88 hardcap;

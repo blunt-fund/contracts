@@ -82,6 +82,7 @@ contract BluntDelegateProjectDeployer is
 
     // Deploy the data source contract.
     address _delegateAddress = deployDelegateFor(
+      controller,
       projectId,
       _launchProjectData.data.duration,
       ethAddress,
