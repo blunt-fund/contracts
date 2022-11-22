@@ -364,20 +364,22 @@ contract BluntDelegate is IBluntDelegate {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
-    if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
+    // If round is open, execute logic to keep track of slices to issue
+    if (!isRoundClosed) {
+      /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
+      if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
-    /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
-    /// contributions can be inside unchecked as token transfers are disabled during round
-    unchecked {
-      /// Update totalContributions and contributions with amount redeemed
-      totalContributions -= uint88(_data.reclaimedAmount.value);
+      /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
+      /// contributions can be inside unchecked as token transfers are disabled during round
+      unchecked {
+        /// Update totalContributions and contributions with amount redeemed
+        totalContributions -= uint88(_data.reclaimedAmount.value);
 
-      /// If a slicer is to be created when round closes
-      if (isSlicerToBeCreated) {
-        contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+        /// If a slicer is to be created when round closes
+        if (isSlicerToBeCreated) {
+          contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+        }
       }
-    }
     }
   }
 
