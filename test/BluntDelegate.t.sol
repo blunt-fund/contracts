@@ -233,6 +233,41 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(bluntDelegate.contributions(user), 9e17);
   }
 
+  function testDidRedeemWhileRoundClosed() public {
+    hevm.prank(user);
+    uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: _target}(
+      projectId,
+      0,
+      address(0),
+      user,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    hevm.prank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+
+    uint256 tokensReturned = 1e14;
+    hevm.prank(user);
+    uint256 reclaimAmount = _jbETHPaymentTerminal.redeemTokensOf(
+      user,
+      projectId,
+      tokensReturned,
+      address(0),
+      tokensReturned,
+      payable(user),
+      '',
+      ''
+    );
+
+    assertEq(mintedTokens, 1e15);
+    assertEq(reclaimAmount, 1e17);
+    assertEq(uint256(bluntDelegate.totalContributions()), _target);
+    assertEq(bluntDelegate.contributions(user), _target);
+  }
+
   function testDidRedeemWithoutSlices() public {
     (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
@@ -762,54 +797,6 @@ contract BluntDelegateTest is BluntSetup {
   ///////////////////////////////////////
   /////////////// EVENTS ////////////////
   ///////////////////////////////////////
-
-  function testEvent_paid() public {
-    uint256 amount = 1e15;
-
-    hevm.expectEmit(false, false, false, true);
-    emit Paid(msg.sender, amount);
-    _jbETHPaymentTerminal.pay{value: amount}(
-      projectId,
-      0,
-      address(0),
-      msg.sender,
-      0,
-      false,
-      '',
-      ''
-    );
-  }
-
-  function testEvent_redeemed() public {
-    hevm.startPrank(user);
-
-    uint256 amount = 1e15;
-    _jbETHPaymentTerminal.pay{value: amount}(
-      projectId,
-      0,
-      address(0),
-      user,
-      0,
-      false,
-      '',
-      ''
-    );
-
-    hevm.expectEmit(false, false, false, true);
-    emit Redeemed(user, amount);
-     _jbETHPaymentTerminal.redeemTokensOf(
-      user,
-      projectId,
-      amount / 1000,
-      address(0),
-      amount / 1000,
-      payable(user),
-      '',
-      ''
-    );
-
-    hevm.stopPrank();
-  }
 
   function testEvent_ClaimedSlices() public {
     uint256 amount = _target + 1e15;
