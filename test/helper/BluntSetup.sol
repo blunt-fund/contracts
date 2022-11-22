@@ -47,6 +47,7 @@ import 'contracts/interfaces/ISliceCore.sol';
 import 'contracts/interfaces/IPriceFeed.sol';
 import '../mocks/SliceCoreMock.sol';
 import '../mocks/PriceFeedMock.sol';
+import '../mocks/ReceiverMock.sol';
 
 // Base contract for Juicebox system tests.
 //
@@ -74,6 +75,7 @@ contract BluntSetup is DSTestPlus {
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
   IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
+  ReceiverMock internal _receiver;
 
   JBOperatorStore internal _jbOperatorStore;
   JBProjects internal _jbProjects;
@@ -210,6 +212,11 @@ contract BluntSetup is DSTestPlus {
     // ---- Deploy Price Feed Mock ----
     PriceFeedMock priceFeedMock = new PriceFeedMock();
     hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
+    hevm.label(address(priceFeedMock), 'Price Feed');
+    
+    // ---- Deploy Receiver Mock ----
+    _receiver = new ReceiverMock();
+    hevm.label(address(_receiver), 'Receiver');
 
     // ---- general setup ----
     hevm.deal(_beneficiary, 100 ether);
