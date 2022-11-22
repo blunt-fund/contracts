@@ -1085,6 +1085,42 @@ contract BluntDelegateTest is BluntSetup {
     );
     hevm.stopPrank();
   }
+  
+  function testRevert_didRedeem_roundClosed() public {
+    uint256 amount = _target + 1e15;
+    hevm.prank(user);
+    _jbETHPaymentTerminal.pay{value: amount}(
+      projectId,
+      0,
+      address(0),
+      user,
+      0,
+      false,
+      '',
+      ''
+    );
+
+    hevm.warp(100);
+    hevm.prank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+
+    // Don't wait for the funding cycle to end
+    hevm.warp(100);
+
+    uint256 tokensReturned = 1e14;
+    hevm.expectRevert(bytes4(keccak256('ROUND_CLOSED()')));
+    hevm.prank(user);
+    _jbETHPaymentTerminal.redeemTokensOf(
+      user,
+      projectId,
+      tokensReturned,
+      address(0),
+      tokensReturned,
+      payable(user),
+      '',
+      ''
+    );
+  }
 
   function testRevert_queueNextPhase_alreadyQueued() public {
     hevm.warp(100);
