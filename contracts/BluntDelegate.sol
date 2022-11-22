@@ -35,8 +35,6 @@ contract BluntDelegate is IBluntDelegate {
     uint256 duration,
     uint256 currentFundingCycle
   );
-  event Paid(address beneficiary, uint256 amount);
-  event Redeemed(address beneficiary, uint256 amount);
   event ClaimedSlices(address beneficiary, uint256 amount);
   event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
   event Queued();
@@ -344,8 +342,6 @@ contract BluntDelegate is IBluntDelegate {
         contributions[_data.beneficiary] += _data.amount.value;
       }
     }
-
-    emit Paid(_data.beneficiary, _data.amount.value);
   }
 
   /**
@@ -368,22 +364,23 @@ contract BluntDelegate is IBluntDelegate {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
-    if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
+    // If round is open, execute logic to keep track of slices to issue
+    if (!isRoundClosed) {
+      /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
+      if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
-    /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
-    /// contributions can be inside unchecked as token transfers are disabled during round
-    unchecked {
-      /// Update totalContributions and contributions with amount redeemed
-      totalContributions -= uint88(_data.reclaimedAmount.value);
+      /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
+      /// contributions can be inside unchecked as token transfers are disabled during round
+      unchecked {
+        /// Update totalContributions and contributions with amount redeemed
+        totalContributions -= uint88(_data.reclaimedAmount.value);
 
-      /// If a slicer is to be created when round closes
-      if (isSlicerToBeCreated) {
-        contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+        /// If a slicer is to be created when round closes
+        if (isSlicerToBeCreated) {
+          contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+        }
       }
     }
-
-    emit Redeemed(_data.beneficiary, _data.reclaimedAmount.value);
   }
 
   /**
