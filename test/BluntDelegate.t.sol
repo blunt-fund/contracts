@@ -30,8 +30,6 @@ contract BluntDelegateTest is BluntSetup {
     uint256 duration,
     uint256 currentFundingCycle
   );
-  event Paid(address beneficiary, uint256 amount);
-  event Redeemed(address beneficiary, uint256 amount);
   event ClaimedSlices(address beneficiary, uint256 amount);
   event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
   event Queued();

@@ -35,8 +35,6 @@ contract BluntDelegate is IBluntDelegate {
     uint256 duration,
     uint256 currentFundingCycle
   );
-  event Paid(address beneficiary, uint256 amount);
-  event Redeemed(address beneficiary, uint256 amount);
   event ClaimedSlices(address beneficiary, uint256 amount);
   event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
   event Queued();
@@ -344,8 +342,6 @@ contract BluntDelegate is IBluntDelegate {
         contributions[_data.beneficiary] += _data.amount.value;
       }
     }
-
-    emit Paid(_data.beneficiary, _data.amount.value);
   }
 
   /**
@@ -382,8 +378,7 @@ contract BluntDelegate is IBluntDelegate {
         contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
       }
     }
-
-    emit Redeemed(_data.beneficiary, _data.reclaimedAmount.value);
+    }
   }
 
   /**
