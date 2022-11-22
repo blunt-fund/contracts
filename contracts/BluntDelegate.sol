@@ -331,9 +331,9 @@ contract BluntDelegate is IBluntDelegate {
 
     /// If a slicer is to be created when round closes
     if (isSlicerToBeCreated) {
-      // If it's the first contribution of the beneficiary, and it is a contract
+      /// If it's the first contribution of the beneficiary, and it is a contract
       if (contributions[_data.beneficiary] == 0 && _data.beneficiary.code.length != 0) {
-        // Revert if beneficiary doesn't accept ERC1155
+        /// Revert if beneficiary doesn't accept ERC1155
         _doSafeTransferAcceptanceCheck(_data.beneficiary);
       }
 
@@ -364,7 +364,10 @@ contract BluntDelegate is IBluntDelegate {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    // If round is open, execute logic to keep track of slices to issue
+    /// Revert if round has been closed successfully
+    if (isRoundClosed && isTargetReached()) revert ROUND_CLOSED();
+
+    /// If round is open, execute logic to keep track of slices to issue
     if (!isRoundClosed) {
       /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
       if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
