@@ -25,6 +25,7 @@ contract BluntDelegate is IBluntDelegate {
   error ALREADY_QUEUED();
   error TOKEN_NOT_SET();
   error CANNOT_ACCEPT_ERC1155();
+  error CANNOT_ACCEPT_ERC721();
 
   //*********************************************************************//
   // ------------------------------ events ----------------------------- //
@@ -239,6 +240,9 @@ contract BluntDelegate is IBluntDelegate {
     address _usdcAddress,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) {
+    if (_deployBluntDelegateData.projectOwner.code.length != 0)
+      _doSafeTransferAcceptanceCheckERC721(_deployBluntDelegateData.projectOwner);
+
     projectId = _projectId;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
@@ -334,7 +338,7 @@ contract BluntDelegate is IBluntDelegate {
       /// If it's the first contribution of the beneficiary, and it is a contract
       if (contributions[_data.beneficiary] == 0 && _data.beneficiary.code.length != 0) {
         /// Revert if beneficiary doesn't accept ERC1155
-        _doSafeTransferAcceptanceCheck(_data.beneficiary);
+        _doSafeTransferAcceptanceCheckERC1155(_data.beneficiary);
       }
 
       /// Cannot overflow as totalContributions would overflow first
@@ -777,7 +781,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     See {ERC1155:_doSafeTransferAcceptanceCheck}
   */
-  function _doSafeTransferAcceptanceCheck(address to) private {
+  function _doSafeTransferAcceptanceCheckERC1155(address to) private {
     try IERC1155Receiver(to).onERC1155Received(address(this), address(this), 1, 1, '') returns (
       bytes4 response
     ) {
@@ -788,6 +792,24 @@ contract BluntDelegate is IBluntDelegate {
       revert(reason);
     } catch {
       revert CANNOT_ACCEPT_ERC1155();
+    }
+  }
+
+  /**
+    @notice
+    See {ERC721:_checkOnERC721Received}
+  */
+  function _doSafeTransferAcceptanceCheckERC721(address to) private {
+    try IERC721Receiver(to).onERC721Received(address(this), address(this), 1, '') returns (
+      bytes4 response
+    ) {
+      if (response != this.onERC721Received.selector) {
+        revert CANNOT_ACCEPT_ERC721();
+      }
+    } catch Error(string memory reason) {
+      revert(reason);
+    } catch {
+      revert CANNOT_ACCEPT_ERC721();
     }
   }
 

@@ -81,6 +81,17 @@ contract BluntDelegateTest is BluntSetup {
     assertBoolEq(bluntDelegateAlt2_.isSlicerToBeCreated(), true);
   }
 
+  function testConstructorAcceptsERC721() public {
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    ) = _formatDeployData();
+
+    deployBluntDelegateData.projectOwner = address(_receiver);
+
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+  }
+
   function testRoundInfo() public {
     RoundInfo memory roundInfo = bluntDelegate.getRoundInfo();
 
@@ -197,6 +208,19 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(mintedTokens, 1e12);
     assertEq(uint256(bluntDelegateAlt_.totalContributions()), amount);
     assertEq(bluntDelegateAlt_.contributions(msg.sender), 0);
+  }
+
+  function testDidPayAcceptsErc1155() public {
+    _jbETHPaymentTerminal.pay{value: _target}(
+      projectId,
+      0,
+      address(0),
+      address(_receiver),
+      0,
+      false,
+      '',
+      ''
+    );
   }
 
   function testDidRedeem() public {
@@ -916,6 +940,18 @@ contract BluntDelegateTest is BluntSetup {
   ///////////////////////////////////////
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
+
+  function testRevert_constructor_cannotAcceptERC721() public {
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    ) = _formatDeployData();
+
+    deployBluntDelegateData.projectOwner = address(_sliceCore);
+
+    hevm.expectRevert(bytes4(keccak256('CANNOT_ACCEPT_ERC721()')));
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+  }
 
   function testRevert_didPay_RoundEnded() public {
     hevm.warp(7 days + 100);
