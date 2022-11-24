@@ -6,10 +6,7 @@ import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 
-contract BluntDelegateProjectDeployer is
-  IBluntDelegateProjectDeployer,
-  JBOperatable
-{
+contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
@@ -49,18 +46,26 @@ contract BluntDelegateProjectDeployer is
   */
   IBluntDelegateDeployer public immutable override delegateDeployer;
 
+  /** 
+    @notice
+    The contract responsible for deploying the delegate as immutable clones.
+  */
+  IBluntDelegateCloner public immutable override delegateCloner;
+
   //*********************************************************************//
   // -------------------------- constructor ---------------------------- //
   //*********************************************************************//
 
   constructor(
     IBluntDelegateDeployer _delegateDeployer,
+    IBluntDelegateCloner _delegateCloner,
     IJBController _controller,
     IJBOperatorStore _operatorStore,
     address _ethAddress,
     address _usdcAddress
   ) JBOperatable(_operatorStore) {
     delegateDeployer = _delegateDeployer;
+    delegateCloner = _delegateCloner;
     controller = _controller;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
@@ -76,25 +81,39 @@ contract BluntDelegateProjectDeployer is
 
     @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a blunt round data source.
     @param _launchProjectData Data necessary to fulfill the transaction to launch a project.
+    @param _clone True if BluntDelegate is to be an immutable clone
 
     @return projectId The ID of the newly configured project.
   */
   function launchProjectFor(
     DeployBluntDelegateData memory _deployBluntDelegateData,
-    JBLaunchProjectData memory _launchProjectData
+    JBLaunchProjectData memory _launchProjectData,
+    bool _clone
   ) external override returns (uint256 projectId) {
     // Get the project ID, optimistically knowing it will be one greater than the current count.
     projectId = controller.projects().count() + 1;
-
-    // Deploy the data source contract.
-    address _delegateAddress = delegateDeployer.deployDelegateFor(
-      controller,
-      projectId,
-      _launchProjectData.data.duration,
-      ethAddress,
-      usdcAddress,
-      _deployBluntDelegateData
-    );
+    address _delegateAddress;
+    if (_clone) {
+      // Deploy the data source contract as immutable clone
+      _delegateAddress = delegateCloner.deployDelegateFor(
+        controller,
+        projectId,
+        _launchProjectData.data.duration,
+        ethAddress,
+        usdcAddress,
+        _deployBluntDelegateData
+      );
+    } else {
+      // Deploy the data source contract.
+      _delegateAddress = delegateDeployer.deployDelegateFor(
+        controller,
+        projectId,
+        _launchProjectData.data.duration,
+        ethAddress,
+        usdcAddress,
+        _deployBluntDelegateData
+      );
+    }
 
     // Set the data source address as the data source of the provided metadata.
     _launchProjectData.metadata.dataSource = _delegateAddress;
