@@ -10,12 +10,14 @@ import 'contracts/interfaces/IBluntDelegateCloner.sol';
 
 contract BluntDelegateProjectDeployerTest is BluntSetup {
   BluntDelegateProjectDeployer public bluntDeployer;
+  IBluntDelegateDeployer public delegateDeployer;
+  IBluntDelegateCloner public delegateCloner;
 
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
-    IBluntDelegateCloner delegateCloner = new BluntDelegateCloner();
+    delegateDeployer = new BluntDelegateDeployer();
+    delegateCloner = new BluntDelegateCloner();
 
     bluntDeployer = new BluntDelegateProjectDeployer(
       delegateDeployer,
