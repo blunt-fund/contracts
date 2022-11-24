@@ -71,6 +71,7 @@ contract BluntSetup is DSTestPlus {
   bool internal _enforceSlicerCreation = false;
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
+  bool internal _clone = false;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;

@@ -36,7 +36,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
       launchProjectData,
-      false
+      _clone
     );
 
     assertEq(projectId, 1);
@@ -51,7 +51,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
       launchProjectData,
-      false
+      _clone
     );
     address owner = _jbProjects.ownerOf(projectId);
     (, JBFundingCycleMetadata memory metadata) = _jbController.currentFundingCycleOf(projectId);
@@ -75,7 +75,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
       launchProjectData,
-      false
+      _clone
     );
     (, JBFundingCycleMetadata memory metadata) = _jbController.currentFundingCycleOf(projectId);
 
@@ -98,11 +98,11 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     launchProjectData.data.weight = 0;
 
     hevm.expectRevert(bytes4(keccak256('INVALID_TOKEN_ISSUANCE()')));
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
 
     launchProjectData.data.weight = 1e14;
 
     hevm.expectRevert(bytes4(keccak256('INVALID_TOKEN_ISSUANCE()')));
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
   }
 }

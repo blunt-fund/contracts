@@ -63,7 +63,7 @@ contract BluntDelegateTest is BluntSetup {
       JBLaunchProjectData memory launchProjectData
     ) = _formatDeployData();
 
-    projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
 
     bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
     hevm.deal(user, 1e30);
@@ -94,7 +94,7 @@ contract BluntDelegateTest is BluntSetup {
 
     deployBluntDelegateData.projectOwner = address(_receiver);
 
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
   }
 
   function testRoundInfo() public {
@@ -931,7 +931,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.expectEmit(false, false, false, true);
     emit RoundCreated(deployBluntDelegateData, 2, launchProjectData.data.duration, 1);
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
   }
 
   function testEvent_closedRound() public {
@@ -1000,7 +1000,7 @@ contract BluntDelegateTest is BluntSetup {
     deployBluntDelegateData.projectOwner = address(_sliceCore);
 
     hevm.expectRevert(bytes4(keccak256('CANNOT_ACCEPT_ERC721()')));
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
   }
 
   function testRevert_didPay_RoundEnded() public {
@@ -1331,7 +1331,7 @@ contract BluntDelegateTest is BluntSetup {
     deployBluntDelegateData.afterRoundSplits = afterRoundSplits_;
     launchProjectData.data.duration = 0;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
   }
 
@@ -1360,7 +1360,7 @@ contract BluntDelegateTest is BluntSetup {
     launchProjectData.data.duration = 0;
     deployBluntDelegateData.enforceSlicerCreation = true;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
   }
 
@@ -1378,7 +1378,7 @@ contract BluntDelegateTest is BluntSetup {
     deployBluntDelegateData.target = 0;
     deployBluntDelegateData.hardcap = 0;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
   }
 
@@ -1398,7 +1398,7 @@ contract BluntDelegateTest is BluntSetup {
     deployBluntDelegateData.isTargetUsd = true;
     deployBluntDelegateData.isHardcapUsd = true;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, false);
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
     _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
   }
 
