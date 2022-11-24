@@ -56,6 +56,11 @@
   "resolved" "https://registry.npmjs.org/@jbx-protocol/juice-contracts-v3/-/juice-contracts-v3-2.0.2.tgz"
   "version" "2.0.2"
 
+"@openzeppelin/contracts-upgradeable@^4.8.0":
+  "integrity" "sha512-5GeFgqMiDlqGT8EdORadp1ntGF0qzWZLmEY7Wbp/yVhN7/B3NNzCxujuI77ktlyG81N3CUZP8cZe3ZAQ/cW10w=="
+  "resolved" "https://registry.npmjs.org/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.8.0.tgz"
+  "version" "4.8.0"
+
 "@openzeppelin/contracts@^4.6.0":
   "integrity" "sha512-4n/JL9izql8303mPqPdubuna/DWEMbmOzWYUWyCPhjhiEr2w3nQrjE7vZz1fBF+wzzP6dZbIcsgqACk53c9FGA=="
   "resolved" "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-4.7.2.tgz"
