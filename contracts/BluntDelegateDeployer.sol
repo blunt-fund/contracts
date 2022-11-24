@@ -42,7 +42,5 @@ contract BluntDelegateDeployer is IBluntDelegateDeployer {
     );
 
     emit DelegateDeployed(_projectId, newDelegate);
-
-    return newDelegate;
   }
 }
