@@ -1,5 +1,5 @@
 [profile.default]
-optimizer_runs = 5000
+optimizer_runs = 1000
 src = 'contracts'
 
 [rpc_endpoints]
