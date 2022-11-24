@@ -29,7 +29,7 @@ contract BluntDelegateCloner is IBluntDelegateCloner {
 
   /** 
     @notice
-    Deploys a BluntDelegate data source.
+    Deploys a BluntDelegate data source as immutable clone.
 
     @param _controller JBController address
     @param _projectId The ID of the project for which the data source should apply.
