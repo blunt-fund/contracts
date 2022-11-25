@@ -736,6 +736,8 @@ contract BluntDelegate is IBluntDelegate {
       tokenSymbol,
       isRoundClosed,
       isQueued,
+      isTargetUsd,
+      isHardcapUsd,
       isSlicerToBeCreated,
       slicerId
     );

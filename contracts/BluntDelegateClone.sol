@@ -751,6 +751,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       tokenSymbol,
       isRoundClosed,
       isQueued,
+      isTargetUsd,
+      isHardcapUsd,
       isSlicerToBeCreated,
       slicerId
     );
