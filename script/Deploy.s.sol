@@ -4,9 +4,11 @@ pragma solidity >=0.8;
 import 'forge-std/Script.sol';
 import {CREATE3Factory} from 'create3-factory/CREATE3Factory.sol';
 
-import {BluntDelegateDeployer} from 'contracts/BluntDelegateDeployer.sol';
 import {BluntDelegateProjectDeployer} from 'contracts/BluntDelegateProjectDeployer.sol';
+import {BluntDelegateDeployer} from 'contracts/BluntDelegateDeployer.sol';
 import 'contracts/interfaces/IBluntDelegateDeployer.sol';
+import {BluntDelegateCloner} from 'contracts/BluntDelegateCloner.sol';
+import 'contracts/interfaces/IBluntDelegateCloner.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBOperatorStore.sol';
 
@@ -25,13 +27,21 @@ contract DeployScript is Script {
     vm.startBroadcast(deployerPrivateKey);
 
     IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
+    IBluntDelegateCloner delegateCloner = new BluntDelegateCloner();
 
     bluntDeployer = BluntDelegateProjectDeployer(
       create3Factory.deploy(
         salt,
         bytes.concat(
           type(BluntDelegateProjectDeployer).creationCode,
-          abi.encode(delegateDeployer, jbController, jbOperatorStore, ethAddress, usdcAddress)
+          abi.encode(
+            delegateDeployer,
+            delegateCloner,
+            jbController,
+            jbOperatorStore,
+            ethAddress,
+            usdcAddress
+          )
         )
       )
     );
