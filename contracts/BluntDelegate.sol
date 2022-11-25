@@ -4,8 +4,6 @@ pragma solidity 0.8.17;
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegate.sol';
 import './interfaces/IPriceFeed.sol';
-import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 
 /// @title Blunt Round data source for Juicebox projects, based on Slice protocol.
 /// @author jacopo <jacopo@slice.so>
@@ -103,7 +101,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The owner of the project once the blunt round is concluded successfully.
   */
-  address public immutable projectOwner;
+  address private immutable projectOwner;
 
   /** 
     @notice
@@ -111,7 +109,7 @@ contract BluntDelegate is IBluntDelegate {
     When `isTargetUsd` is enabled, it is a 6 point decimal number.
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public immutable target;
+  uint88 private immutable target;
 
   /** 
     @notice
@@ -119,50 +117,50 @@ contract BluntDelegate is IBluntDelegate {
     When `isHardcapUsd` is enabled, it is a 6 point decimal number.
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public immutable hardcap;
+  uint88 private immutable hardcap;
 
   /**  
     @notice
     The timestamp when the slicer becomes releasable.
   */
-  uint40 public immutable releaseTimelock;
+  uint40 private immutable releaseTimelock;
 
   /** 
     @notice
     The timestamp when the slicer becomes transferable.
   */
-  uint40 public immutable transferTimelock;
+  uint40 private immutable transferTimelock;
 
   /** 
     @notice
     The number of the funding cycle related to the blunt round.
     @dev uint40 is sufficient and saves gas with bit packing
   */
-  uint40 public immutable fundingCycleRound;
+  uint40 private immutable fundingCycleRound;
 
   /** 
     @notice
     Reserved rate to be set in case of a successful round
   */
-  uint16 public immutable afterRoundReservedRate;
+  uint16 private immutable afterRoundReservedRate;
 
   /**
     @notice
     True if a target is expressed in USD
   */
-  bool public immutable isTargetUsd;
+  bool private immutable isTargetUsd;
 
   /**
     @notice
     True if a hardcap is expressed in USD
   */
-  bool public immutable isHardcapUsd;
+  bool private immutable isHardcapUsd;
 
   /**
     @notice
     True if a slicer is created when round closes successfully
   */
-  bool public immutable isSlicerToBeCreated;
+  bool private immutable isSlicerToBeCreated;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -175,44 +173,44 @@ contract BluntDelegate is IBluntDelegate {
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
     uint144 is sufficient and saves gas by bit packing efficiently.
   */
-  uint144 public slicerId;
+  uint144 private slicerId;
 
   /**
     @notice
     Total contributions received during round
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public totalContributions;
+  uint88 private totalContributions;
 
   /**
     @notice
     True if the round has been closed 
   */
-  bool public isRoundClosed;
+  bool private isRoundClosed;
 
   /**
     @notice
     True if the round has been queued
   */
-  bool public isQueued;
+  bool private isQueued;
 
   /** 
     @notice
     Name of the token to be issued in case of a successful round
   */
-  string public tokenName;
+  string private tokenName;
 
   /** 
     @notice
     Symbol of the token to be issued in case of a successful round
   */
-  string public tokenSymbol;
+  string private tokenSymbol;
 
   /** 
     @notice
     Project metadata splits to be enabled when a successful round is closed.
   */
-  JBSplit[] public afterRoundSplits;
+  JBSplit[] private afterRoundSplits;
 
   /**
     @notice

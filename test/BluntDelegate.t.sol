@@ -83,7 +83,7 @@ contract BluntDelegateTest is BluntSetup {
     assertBoolEq(roundInfo.isSlicerToBeCreated, false);
 
     (, BluntDelegate bluntDelegateAlt2_) = _createDelegateEnforcedSlicer();
-    assertBoolEq(bluntDelegateAlt2_.isSlicerToBeCreated(), true);
+    assertBoolEq(bluntDelegateAlt2_.getRoundInfo().isSlicerToBeCreated, true);
   }
 
   function testConstructorAcceptsERC721() public {
@@ -119,6 +119,8 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.tokenSymbol, _tokenSymbol);
     assertBoolEq(roundInfo.isRoundClosed, false);
     assertBoolEq(roundInfo.isQueued, false);
+    assertBoolEq(roundInfo.isTargetUsd, _isTargetUsd);
+    assertBoolEq(roundInfo.isHardcapUsd, _isHardcapUsd);
     assertBoolEq(roundInfo.isSlicerToBeCreated, true);
     assertEq(roundInfo.slicerId, 0);
   }
@@ -191,7 +193,7 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     assertEq(mintedTokens, 1e12);
-    assertEq(uint256(bluntDelegate.totalContributions()), amount);
+    assertEq(uint256(bluntDelegate.getRoundInfo().totalContributions), amount);
     assertEq(bluntDelegate.contributions(msg.sender), amount);
   }
 
@@ -211,7 +213,7 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     assertEq(mintedTokens, 1e12);
-    assertEq(uint256(bluntDelegateAlt_.totalContributions()), amount);
+    assertEq(uint256(bluntDelegateAlt_.getRoundInfo().totalContributions), amount);
     assertEq(bluntDelegateAlt_.contributions(msg.sender), 0);
   }
 
@@ -258,7 +260,7 @@ contract BluntDelegateTest is BluntSetup {
 
     assertEq(mintedTokens, 1e15);
     assertEq(reclaimAmount, 1e17);
-    assertEq(uint256(bluntDelegate.totalContributions()), 9e17);
+    assertEq(uint256(bluntDelegate.getRoundInfo().totalContributions), 9e17);
     assertEq(bluntDelegate.contributions(user), 9e17);
   }
 
@@ -293,7 +295,7 @@ contract BluntDelegateTest is BluntSetup {
 
     assertEq(mintedTokens, 1e15);
     assertEq(reclaimAmount, 1e17);
-    assertEq(uint256(bluntDelegate.totalContributions()), _target);
+    assertEq(uint256(bluntDelegate.getRoundInfo().totalContributions), _target);
     assertEq(bluntDelegate.contributions(user), _target);
   }
 
@@ -329,7 +331,7 @@ contract BluntDelegateTest is BluntSetup {
 
     assertEq(mintedTokens, 1e15);
     assertEq(reclaimAmount, 1e17);
-    assertEq(uint256(bluntDelegateAlt_.totalContributions()), 9e17);
+    assertEq(uint256(bluntDelegateAlt_.getRoundInfo().totalContributions), 9e17);
     assertEq(bluntDelegateAlt_.contributions(user), 0);
   }
 
@@ -449,8 +451,8 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.closeRound();
     hevm.stopPrank();
 
-    assertBoolEq(bluntDelegate.isRoundClosed(), true);
-    assertEq(bluntDelegate.slicerId(), 0);
+    assertBoolEq(bluntDelegate.getRoundInfo().isRoundClosed, true);
+    assertEq(bluntDelegate.getRoundInfo().slicerId, 0);
   }
 
   function testCloseRoundAtZero_NoTarget() public {
@@ -461,7 +463,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegateAlt_.closeRound();
     hevm.stopPrank();
 
-    assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
+    assertBoolEq(bluntDelegateAlt_.getRoundInfo().isRoundClosed, true);
 
     hevm.warp(100);
 
@@ -471,7 +473,7 @@ contract BluntDelegateTest is BluntSetup {
     address currency = address(_jbTokenStore.tokenOf(projectId_));
     assertEq(currency, address(0));
 
-    assertEq(bluntDelegate.slicerId(), 0);
+    assertEq(bluntDelegate.getRoundInfo().slicerId, 0);
   }
 
   function testCloseRoundSuccessfully_NoTarget() public {
@@ -489,7 +491,7 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    uint256 totalContributions = bluntDelegateAlt_.totalContributions();
+    uint256 totalContributions = bluntDelegateAlt_.getRoundInfo().totalContributions;
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
@@ -497,7 +499,7 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 timestamp = block.timestamp;
 
-    assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
+    assertBoolEq(bluntDelegateAlt_.getRoundInfo().isRoundClosed, true);
 
     hevm.warp(100);
 
@@ -506,7 +508,7 @@ contract BluntDelegateTest is BluntSetup {
     address currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
 
-    uint256 slicerId = bluntDelegateAlt_.slicerId();
+    uint256 slicerId = bluntDelegateAlt_.getRoundInfo().slicerId;
     assertTrue(slicerId != 0);
     assertEq(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId), totalContributions / 1e15);
 
@@ -528,7 +530,7 @@ contract BluntDelegateTest is BluntSetup {
 
   function testCloseRoundAboveTarget() public {
     address currency = address(_jbTokenStore.tokenOf(projectId));
-    uint256 slicerId = bluntDelegate.slicerId();
+    uint256 slicerId = bluntDelegate.getRoundInfo().slicerId;
     assertTrue(currency == address(0));
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegate), slicerId) == 0);
@@ -545,7 +547,7 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    uint256 totalContributions = bluntDelegate.totalContributions();
+    uint256 totalContributions = bluntDelegate.getRoundInfo().totalContributions;
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
     bluntDelegate.closeRound();
@@ -553,7 +555,7 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 timestamp = block.timestamp;
 
-    assertBoolEq(bluntDelegate.isRoundClosed(), true);
+    assertBoolEq(bluntDelegate.getRoundInfo().isRoundClosed, true);
 
     // Wait for the funding cycle to end
     hevm.warp(7 days + 100);
@@ -563,7 +565,7 @@ contract BluntDelegateTest is BluntSetup {
     currency = address(_jbTokenStore.tokenOf(projectId));
     assertTrue(currency != address(0));
 
-    slicerId = bluntDelegate.slicerId();
+    slicerId = bluntDelegate.getRoundInfo().slicerId;
     assertTrue(slicerId != 0);
     assertEq(_sliceCore.balanceOf(address(bluntDelegate), slicerId), totalContributions / 1e15);
 
@@ -587,7 +589,7 @@ contract BluntDelegateTest is BluntSetup {
     (uint256 projectId_, BluntDelegate bluntDelegateAlt2_) = _createDelegateEnforcedSlicer();
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
-    uint256 slicerId = bluntDelegateAlt2_.slicerId();
+    uint256 slicerId = bluntDelegateAlt2_.getRoundInfo().slicerId;
     assertTrue(currency == address(0));
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt2_), slicerId) == 0);
@@ -604,7 +606,7 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    uint256 totalContributions = bluntDelegateAlt2_.totalContributions();
+    uint256 totalContributions = bluntDelegateAlt2_.getRoundInfo().totalContributions;
     hevm.warp(100);
     hevm.startPrank(_bluntProjectOwner);
     bluntDelegateAlt2_.closeRound();
@@ -612,7 +614,7 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 timestamp = block.timestamp;
 
-    assertBoolEq(bluntDelegateAlt2_.isRoundClosed(), true);
+    assertBoolEq(bluntDelegateAlt2_.getRoundInfo().isRoundClosed, true);
 
     hevm.warp(100);
 
@@ -621,7 +623,7 @@ contract BluntDelegateTest is BluntSetup {
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
 
-    slicerId = bluntDelegateAlt2_.slicerId();
+    slicerId = bluntDelegateAlt2_.getRoundInfo().slicerId;
     assertTrue(slicerId != 0);
     assertEq(
       _sliceCore.balanceOf(address(bluntDelegateAlt2_), slicerId),
@@ -644,7 +646,7 @@ contract BluntDelegateTest is BluntSetup {
     (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
-    uint256 slicerId = bluntDelegateAlt_.slicerId();
+    uint256 slicerId = bluntDelegateAlt_.getRoundInfo().slicerId;
     assertTrue(currency == address(0));
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId) == 0);
@@ -668,7 +670,7 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 timestamp = block.timestamp;
 
-    assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
+    assertBoolEq(bluntDelegateAlt_.getRoundInfo().isRoundClosed, true);
 
     hevm.warp(100);
 
@@ -677,7 +679,7 @@ contract BluntDelegateTest is BluntSetup {
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertTrue(currency != address(0));
 
-    slicerId = bluntDelegateAlt_.slicerId();
+    slicerId = bluntDelegateAlt_.getRoundInfo().slicerId;
     assertEq(slicerId, 0);
     assertEq(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId), 0);
 
@@ -697,7 +699,7 @@ contract BluntDelegateTest is BluntSetup {
     (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutSlicer();
 
     address currency = address(_jbTokenStore.tokenOf(projectId_));
-    uint256 slicerId = bluntDelegateAlt_.slicerId();
+    uint256 slicerId = bluntDelegateAlt_.getRoundInfo().slicerId;
     assertTrue(currency == address(0));
     assertTrue(slicerId == 0);
     assertTrue(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId) == 0);
@@ -722,7 +724,7 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 timestamp = block.timestamp;
 
-    assertBoolEq(bluntDelegateAlt_.isRoundClosed(), true);
+    assertBoolEq(bluntDelegateAlt_.getRoundInfo().isRoundClosed, true);
 
     hevm.warp(100);
 
@@ -731,7 +733,7 @@ contract BluntDelegateTest is BluntSetup {
     currency = address(_jbTokenStore.tokenOf(projectId_));
     assertEq(currency, address(0));
 
-    slicerId = bluntDelegateAlt_.slicerId();
+    slicerId = bluntDelegateAlt_.getRoundInfo().slicerId;
     assertEq(slicerId, 0);
     assertEq(_sliceCore.balanceOf(address(bluntDelegateAlt_), slicerId), 0);
 
@@ -769,7 +771,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.closeRound();
     hevm.stopPrank();
 
-    uint256 slicerId = bluntDelegate.slicerId();
+    uint256 slicerId = bluntDelegate.getRoundInfo().slicerId;
     address[] memory beneficiaries = new address[](3);
     beneficiaries[0] = user;
     beneficiaries[1] = address(3);
@@ -807,7 +809,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegate.closeRound();
     hevm.stopPrank();
 
-    uint256 slicerId = bluntDelegate.slicerId();
+    uint256 slicerId = bluntDelegate.getRoundInfo().slicerId;
 
     hevm.prank(user);
     bluntDelegate.claimSlices();

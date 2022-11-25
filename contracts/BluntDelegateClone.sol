@@ -5,8 +5,6 @@ import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegateClone.sol';
 import './interfaces/IPriceFeed.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 
 /// @title Blunt Round data source for Juicebox projects, based on Slice protocol (Clones implementation).
 /// @author jacopo <jacopo@slice.so>
@@ -104,7 +102,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @notice
     The owner of the project once the blunt round is concluded successfully.
   */
-  address public projectOwner;
+  address private projectOwner;
 
   /** 
     @notice
@@ -112,7 +110,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     When `isTargetUsd` is enabled, it is a 6 point decimal number.
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public target;
+  uint88 private target;
 
   /** 
     @notice
@@ -120,50 +118,50 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     When `isHardcapUsd` is enabled, it is a 6 point decimal number.
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public hardcap;
+  uint88 private hardcap;
 
   /**  
     @notice
     The timestamp when the slicer becomes releasable.
   */
-  uint40 public releaseTimelock;
+  uint40 private releaseTimelock;
 
   /** 
     @notice
     The timestamp when the slicer becomes transferable.
   */
-  uint40 public transferTimelock;
+  uint40 private transferTimelock;
 
   /** 
     @notice
     The number of the funding cycle related to the blunt round.
     @dev uint40 is sufficient and saves gas with bit packing
   */
-  uint40 public fundingCycleRound;
+  uint40 private fundingCycleRound;
 
   /** 
     @notice
     Reserved rate to be set in case of a successful round
   */
-  uint16 public afterRoundReservedRate;
+  uint16 private afterRoundReservedRate;
 
   /**
     @notice
     True if a target is expressed in USD
   */
-  bool public isTargetUsd;
+  bool private isTargetUsd;
 
   /**
     @notice
     True if a hardcap is expressed in USD
   */
-  bool public isHardcapUsd;
+  bool private isHardcapUsd;
 
   /**
     @notice
     True if a slicer is created when round closes successfully
   */
-  bool public isSlicerToBeCreated;
+  bool private isSlicerToBeCreated;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -176,44 +174,44 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @dev Assumes ID 0 is not created, since it's generally taken by the protocol.
     uint144 is sufficient and saves gas by bit packing efficiently.
   */
-  uint144 public slicerId;
+  uint144 private slicerId;
 
   /**
     @notice
     Total contributions received during round
     @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 public totalContributions;
+  uint88 private totalContributions;
 
   /**
     @notice
     True if the round has been closed 
   */
-  bool public isRoundClosed;
+  bool private isRoundClosed;
 
   /**
     @notice
     True if the round has been queued
   */
-  bool public isQueued;
+  bool private isQueued;
 
   /** 
     @notice
     Name of the token to be issued in case of a successful round
   */
-  string public tokenName;
+  string private tokenName;
 
   /** 
     @notice
     Symbol of the token to be issued in case of a successful round
   */
-  string public tokenSymbol;
+  string private tokenSymbol;
 
   /** 
     @notice
     Project metadata splits to be enabled when a successful round is closed.
   */
-  JBSplit[] public afterRoundSplits;
+  JBSplit[] private afterRoundSplits;
 
   /**
     @notice
