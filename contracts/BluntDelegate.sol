@@ -162,6 +162,17 @@ contract BluntDelegate is IBluntDelegate {
   */
   bool private immutable isSlicerToBeCreated;
 
+  /**
+    @notice
+    Constants used to calculate Blunt Finance fee
+    @dev 
+    uint56 is enough as allows for boundaries of up to 70B USD (7e16 with 6 decimals)
+  */
+  uint16 public immutable MAX_K;
+  uint16 public immutable MIN_K;
+  uint56 public immutable UPPER_BOUNDARY_USD;
+  uint56 public immutable LOWER_BOUNDARY_USD;
+
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
   //*********************************************************************//
@@ -240,6 +251,11 @@ contract BluntDelegate is IBluntDelegate {
   ) {
     if (_deployBluntDelegateData.projectOwner.code.length != 0)
       _doSafeTransferAcceptanceCheckERC721(_deployBluntDelegateData.projectOwner);
+
+    MAX_K = uint16(_deployBluntDelegateData.maxK);
+    MIN_K = uint16(_deployBluntDelegateData.minK);
+    UPPER_BOUNDARY_USD = uint56(_deployBluntDelegateData.upperBoundary);
+    LOWER_BOUNDARY_USD = uint56(_deployBluntDelegateData.lowerBoundary);
 
     projectId = _projectId;
     ethAddress = _ethAddress;
@@ -775,6 +791,34 @@ contract BluntDelegate is IBluntDelegate {
     }
 
     if (totalContributions > hardcap_) revert CAP_REACHED();
+  }
+
+  /**
+    @notice
+    Calculate fee for successful rounds. Used in `closeRound`
+  */
+  function _calculateFee(uint256 raised) private view returns (uint256 fee) {
+    unchecked {
+      uint256 raisedUsd = priceFeed.getQuote(uint128(raised), ethAddress, usdcAddress, 30 minutes);
+      uint256 k;
+      if (raisedUsd < LOWER_BOUNDARY_USD) {
+        k = MAX_K;
+      } else if (raisedUsd > UPPER_BOUNDARY_USD) {
+        k = MIN_K;
+      } else {
+        /** @dev 
+          - [(MAX_K - MIN_K) * (raisedUsd - LOWER_BOUNDARY_USD)] cannot overflow since raisedUsd < UPPER_BOUNDARY_USD
+          - k cannot underflow since MAX_K > (MAX_K - MIN_K) * 1
+        */
+        k =
+          MAX_K -
+          (((MAX_K - MIN_K) * (raisedUsd - LOWER_BOUNDARY_USD)) /
+            (UPPER_BOUNDARY_USD - LOWER_BOUNDARY_USD));
+      }
+
+      /// @dev overflows for [raised > 2^256 / MIN_K], which can practically never happen
+      fee = (k * raised) / 10000;
+    }
   }
 
   /**

@@ -22,4 +22,8 @@ struct DeployBluntDelegateData {
   bool enforceSlicerCreation;
   bool isTargetUsd;
   bool isHardcapUsd;
+  uint256 maxK;
+  uint256 minK;
+  uint256 upperBoundary;
+  uint256 lowerBoundary;
 }
