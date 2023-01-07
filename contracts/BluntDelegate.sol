@@ -4,10 +4,10 @@ pragma solidity 0.8.17;
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegate.sol';
 import './interfaces/IPriceFeed.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
 
 /// @title Blunt Round data source for Juicebox projects, based on Slice protocol.
 /// @author jacopo <jacopo@slice.so>
-/// @author jango <jango.eth>
 /// @notice Funding rounds with pre-defined rules which reward contributors with tokens and slices.
 contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
@@ -49,13 +49,19 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Ratio between amount of tokens contributed and slices minted
   */
-  uint64 public constant TOKENS_PER_SLICE = 1e15; /// 1 slice every 0.001 ETH
+  uint256 public constant TOKENS_PER_SLICE = 1e15; /// 1 slice every 0.001 ETH
 
   /**
     @notice
     Max total contribution allowed, calculated from `TOKENS_PER_SLICE * type(uint32).max`
   */
-  uint88 public constant MAX_CONTRIBUTION = 4.2e6 ether;
+  uint256 public constant MAX_CONTRIBUTION = 4.2e6 ether;
+
+  /** 
+    @notice 
+    The ETH token address in Juicebox
+  */
+  address public constant ETH = address(0x000000000000000000000000000000000000EEEe);
 
   /**
     @notice
@@ -93,6 +99,12 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
+    The ID of the Blunt Finance project.
+  */
+  uint256 public immutable bluntProjectId;
+
+  /**
+    @notice
     The ID of the project.
   */
   uint256 public immutable projectId;
@@ -107,42 +119,39 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The minimum amount of contributions while this data source is in effect.
     When `isTargetUsd` is enabled, it is a 6 point decimal number.
-    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 private immutable target;
+  uint256 private immutable target;
 
   /** 
     @notice
     The maximum amount of contributions while this data source is in effect. 
     When `isHardcapUsd` is enabled, it is a 6 point decimal number.
-    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint88 private immutable hardcap;
+  uint256 private immutable hardcap;
 
   /**  
     @notice
     The timestamp when the slicer becomes releasable.
   */
-  uint40 private immutable releaseTimelock;
+  uint256 private immutable releaseTimelock;
 
   /** 
     @notice
     The timestamp when the slicer becomes transferable.
   */
-  uint40 private immutable transferTimelock;
+  uint256 private immutable transferTimelock;
 
   /** 
     @notice
     The number of the funding cycle related to the blunt round.
-    @dev uint40 is sufficient and saves gas with bit packing
   */
-  uint40 private immutable fundingCycleRound;
+  uint256 private immutable fundingCycleRound;
 
   /** 
     @notice
     Reserved rate to be set in case of a successful round
   */
-  uint16 private immutable afterRoundReservedRate;
+  uint256 private immutable afterRoundReservedRate;
 
   /**
     @notice
@@ -165,13 +174,11 @@ contract BluntDelegate is IBluntDelegate {
   /**
     @notice
     Constants used to calculate Blunt Finance fee
-    @dev 
-    uint56 is enough as allows for boundaries of up to 70B USD (7e16 with 6 decimals)
   */
-  uint16 public immutable MAX_K;
-  uint16 public immutable MIN_K;
-  uint56 public immutable UPPER_BOUNDARY_USD;
-  uint56 public immutable LOWER_BOUNDARY_USD;
+  uint256 public immutable MAX_K;
+  uint256 public immutable MIN_K;
+  uint256 public immutable UPPER_BOUNDARY_USD;
+  uint256 public immutable LOWER_BOUNDARY_USD;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -235,6 +242,7 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @param _controller JBController address
+    @param _bluntProjectId The ID of the Blunt Finance project 
     @param _projectId The ID of the project 
     @param _duration Blunt round duration
     @param _ethAddress WETH address on Uniswap
@@ -243,6 +251,7 @@ contract BluntDelegate is IBluntDelegate {
   */
   constructor(
     IJBController _controller,
+    uint256 _bluntProjectId,
     uint256 _projectId,
     uint256 _duration,
     address _ethAddress,
@@ -252,11 +261,12 @@ contract BluntDelegate is IBluntDelegate {
     if (_deployBluntDelegateData.projectOwner.code.length != 0)
       _doSafeTransferAcceptanceCheckERC721(_deployBluntDelegateData.projectOwner);
 
-    MAX_K = uint16(_deployBluntDelegateData.maxK);
-    MIN_K = uint16(_deployBluntDelegateData.minK);
-    UPPER_BOUNDARY_USD = uint56(_deployBluntDelegateData.upperBoundary);
-    LOWER_BOUNDARY_USD = uint56(_deployBluntDelegateData.lowerBoundary);
+    MAX_K = _deployBluntDelegateData.maxK;
+    MIN_K = _deployBluntDelegateData.minK;
+    UPPER_BOUNDARY_USD = _deployBluntDelegateData.upperBoundary;
+    LOWER_BOUNDARY_USD = _deployBluntDelegateData.lowerBoundary;
 
+    bluntProjectId = _bluntProjectId;
     projectId = _projectId;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
@@ -304,7 +314,7 @@ contract BluntDelegate is IBluntDelegate {
         1;
     }
     /// Store current funding cycle
-    fundingCycleRound = uint40(currentFundingCycle);
+    fundingCycleRound = currentFundingCycle;
 
     emit RoundCreated(_deployBluntDelegateData, _projectId, _duration, currentFundingCycle);
   }
@@ -533,8 +543,11 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice 
-    Close blunt round if target has been reached. 
-    Consists in minting slices to blunt delegate, reconfiguring next FC and transferring project NFT to projectOwner.
+    Close blunt round if target has been reached:
+    - Pay BF fee, 
+    - Mint slices to blunt delegate, 
+    - Reconfigure next FC,
+    - Transfer project NFT to projectOwner.
     If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
 
     @dev 
@@ -546,31 +559,6 @@ contract BluntDelegate is IBluntDelegate {
     isRoundClosed = true;
 
     if (isTargetReached()) {
-      /// Get current JBFundingCycleMetadata
-      (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
-
-      /// Edit current metadata to:
-      /// Set reservedRate from `afterRoundReservedRate`
-      metadata.reservedRate = afterRoundReservedRate;
-      /// Disable redemptions
-      delete metadata.redemptionRate;
-      /// Enable transfers
-      delete metadata.global.pauseTransfers;
-      /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
-      metadata.pausePay = true;
-      /// Detach dataSource
-      delete metadata.useDataSourceForPay;
-      delete metadata.useDataSourceForRedeem;
-      delete metadata.dataSource;
-
-      /// Set JBFundingCycleData
-      JBFundingCycleData memory data = JBFundingCycleData({
-        duration: 0,
-        weight: 1e24, /// token issuance 1M
-        discountRate: 0,
-        ballot: IJBFundingCycleBallot(address(0))
-      });
-
       address currency;
       string memory tokenName_ = tokenName;
       string memory tokenSymbol_ = tokenSymbol;
@@ -594,9 +582,14 @@ contract BluntDelegate is IBluntDelegate {
         }
       }
 
-      /// Format splits
-      JBGroupedSplits[] memory splits = new JBGroupedSplits[](1);
-      splits[0] = JBGroupedSplits(2, afterRoundSplits);
+      (
+        address jbEthTerminalAddress,
+        uint256 bluntFee,
+        JBFundingCycleData memory data,
+        JBFundingCycleMetadata memory metadata,
+        JBGroupedSplits[] memory splits,
+        JBFundAccessConstraints[] memory fundAccessConstraints
+      ) = _formatReconfigData();
 
       /// Reconfigure Funding Cycle
       controller.reconfigureFundingCyclesOf(
@@ -605,9 +598,19 @@ contract BluntDelegate is IBluntDelegate {
         metadata,
         0,
         splits,
-        new JBFundAccessConstraints[](0),
+        fundAccessConstraints,
         ''
       );
+
+      // Distribute payout fee to Blunt Finance
+      IJBPayoutTerminal(jbEthTerminalAddress).distributePayoutsOf({
+        _projectId: projectId,
+        _amount: bluntFee,
+        _currency: 1,
+        _token: ETH,
+        _minReturnedTokens: 0,
+        _memo: ''
+      });
 
       /// Transfer project ownership to projectOwner
       directory.projects().safeTransferFrom(address(this), projectOwner, projectId);
@@ -639,7 +642,7 @@ contract BluntDelegate is IBluntDelegate {
         slicesToMint, /// 100% superowner slices
         acceptedCurrencies,
         releaseTimelock,
-        transferTimelock,
+        uint40(transferTimelock),
         address(0),
         0,
         0
@@ -795,7 +798,85 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
-    Calculate fee for successful rounds. Used in `closeRound`
+    Format data to reconfig project and pay Blunt Finance fee
+  */
+  function _formatReconfigData()
+    private
+    view
+    returns (
+      address jbEthTerminalAddress,
+      uint256 bluntFee,
+      JBFundingCycleData memory data,
+      JBFundingCycleMetadata memory metadata,
+      JBGroupedSplits[] memory splits,
+      JBFundAccessConstraints[] memory fundAccessConstraints
+    )
+  {
+    /// Set funding cycle data
+    data = JBFundingCycleData({
+      duration: 0,
+      weight: 1e24, /// token issuance 1M
+      discountRate: 0,
+      ballot: IJBFundingCycleBallot(address(0))
+    });
+
+    /// Edit funding cycle metadata:
+    /// Get current funding cycle metadata
+    (, metadata) = controller.currentFundingCycleOf(projectId);
+    /// Set reservedRate from `afterRoundReservedRate`
+    metadata.reservedRate = afterRoundReservedRate; // TODO: Make this optional
+    /// Disable redemptions
+    metadata.pauseRedeem = true;
+    delete metadata.redemptionRate;
+    /// Enable transfers
+    delete metadata.global.pauseTransfers;
+    /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
+    metadata.pausePay = true;
+    /// Detach dataSource
+    delete metadata.useDataSourceForPay;
+    delete metadata.useDataSourceForRedeem;
+    delete metadata.dataSource;
+
+    // Calculate BF fee
+    bluntFee = _calculateFee(totalContributions);
+
+    /// Format bluntSplits
+    JBSplit[] memory bluntSplits = new JBSplit[](1);
+    bluntSplits[0] = JBSplit({
+      preferClaimed: false,
+      preferAddToBalance: false,
+      percent: 1_000_000_000,
+      projectId: bluntProjectId,
+      beneficiary: payable(projectOwner),
+      lockedUntil: 0,
+      allocator: IJBSplitAllocator(address(0))
+    });
+
+    // Format splits
+    splits = new JBGroupedSplits[](2);
+    splits[0] = JBGroupedSplits(1, bluntSplits); // Payout distribution
+    // TODO: Make this optional
+    splits[1] = JBGroupedSplits(2, afterRoundSplits); // Reserved rate
+
+    // Get JB ETH terminal
+    IJBPaymentTerminal jbEthTerminal = directory.primaryTerminalOf(projectId, ETH);
+    jbEthTerminalAddress = address(jbEthTerminal);
+
+    // Format fundAccessConstraints
+    fundAccessConstraints = new JBFundAccessConstraints[](1);
+    fundAccessConstraints[0] = JBFundAccessConstraints({
+      terminal: jbEthTerminal,
+      token: ETH,
+      distributionLimit: bluntFee,
+      distributionLimitCurrency: 1,
+      overflowAllowance: 0,
+      overflowAllowanceCurrency: 0
+    });
+  }
+
+  /**
+    @notice
+    Calculate fee for successful rounds. Used in `_formatReconfigData`
   */
   function _calculateFee(uint256 raised) private view returns (uint256 fee) {
     unchecked {
@@ -808,7 +889,7 @@ contract BluntDelegate is IBluntDelegate {
       } else {
         /** @dev 
           - [(MAX_K - MIN_K) * (raisedUsd - LOWER_BOUNDARY_USD)] cannot overflow since raisedUsd < UPPER_BOUNDARY_USD
-          - k cannot underflow since MAX_K > (MAX_K - MIN_K) * 1
+          - k cannot underflow since MAX_K > (MAX_K - MIN_K)
         */
         k =
           MAX_K -
@@ -816,7 +897,7 @@ contract BluntDelegate is IBluntDelegate {
             (UPPER_BOUNDARY_USD - LOWER_BOUNDARY_USD));
       }
 
-      /// @dev overflows for [raised > 2^256 / MIN_K], which can practically never happen
+      /// @dev overflows for [raised > 2^256 / MIN_K], which practically cannot be reached
       fee = (k * raised) / 10000;
     }
   }
