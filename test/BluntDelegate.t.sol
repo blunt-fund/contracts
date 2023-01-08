@@ -54,6 +54,7 @@ contract BluntDelegateTest is BluntSetup {
       delegateCloner,
       _jbController,
       _jbOperatorStore,
+      _bluntProjectId,
       address(uint160(uint256(keccak256('eth')))),
       address(uint160(uint256(keccak256('usdc'))))
     );
@@ -278,6 +279,7 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     hevm.prank(_bluntProjectOwner);
+    
     bluntDelegate.closeRound();
 
     uint256 tokensReturned = 1e14;
@@ -353,9 +355,8 @@ contract BluntDelegateTest is BluntSetup {
     string memory newTokenName = 'Name';
     string memory newTokenSymbol = 'SYM';
 
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.setTokenMetadata(newTokenName, newTokenSymbol);
-    hevm.stopPrank();
 
     RoundInfo memory roundInfo = bluntDelegate.getRoundInfo();
 
@@ -379,10 +380,11 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
-    bluntDelegate.closeRound();
-    hevm.stopPrank();
+    bluntDelegate.queueNextPhase();
     hevm.warp(7 days + 100);
+    
+    hevm.prank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
 
     bluntDelegate.transferToken(IERC20(erc20));
 
@@ -395,9 +397,8 @@ contract BluntDelegateTest is BluntSetup {
     ERC20Mock erc20 = new ERC20Mock(address(bluntDelegate));
 
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
     hevm.warp(7 days + 100);
 
     bluntDelegate.transferToken(IERC20(erc20));
@@ -423,9 +424,8 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
     hevm.warp(7 days + 100);
 
     bluntDelegate.transferToken(IERC20(erc20));
@@ -447,9 +447,8 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     assertBoolEq(bluntDelegate.getRoundInfo().isRoundClosed, true);
     assertEq(bluntDelegate.getRoundInfo().slicerId, 0);
@@ -459,9 +458,8 @@ contract BluntDelegateTest is BluntSetup {
     (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
-    hevm.stopPrank();
 
     assertBoolEq(bluntDelegateAlt_.getRoundInfo().isRoundClosed, true);
 
@@ -493,9 +491,8 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 totalContributions = bluntDelegateAlt_.getRoundInfo().totalContributions;
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
-    hevm.stopPrank();
 
     uint256 timestamp = block.timestamp;
 
@@ -548,10 +545,13 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     uint256 totalContributions = bluntDelegate.getRoundInfo().totalContributions;
+    
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
+
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     uint256 timestamp = block.timestamp;
 
@@ -608,9 +608,8 @@ contract BluntDelegateTest is BluntSetup {
 
     uint256 totalContributions = bluntDelegateAlt2_.getRoundInfo().totalContributions;
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt2_.closeRound();
-    hevm.stopPrank();
 
     uint256 timestamp = block.timestamp;
 
@@ -664,9 +663,9 @@ contract BluntDelegateTest is BluntSetup {
     );
 
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+
+    hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
-    hevm.stopPrank();
 
     uint256 timestamp = block.timestamp;
 
@@ -765,11 +764,13 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    // Close round
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
+
+    // Close round
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     uint256 slicerId = bluntDelegate.getRoundInfo().slicerId;
     address[] memory beneficiaries = new address[](3);
@@ -803,11 +804,13 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    // Close round
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
+
+    // Close round
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     uint256 slicerId = bluntDelegate.getRoundInfo().slicerId;
 
@@ -870,11 +873,13 @@ contract BluntDelegateTest is BluntSetup {
     hevm.prank(user);
     _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
 
-    // Close round
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
+
+    // Close round
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     hevm.expectEmit(false, false, false, true);
     emit ClaimedSlices(user, amount / 1e15);
@@ -897,11 +902,13 @@ contract BluntDelegateTest is BluntSetup {
       ''
     );
 
-    // Close round
     hevm.warp(100);
-    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
+
+    // Close round
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     address[] memory beneficiaries = new address[](3);
     beneficiaries[0] = user;
@@ -932,7 +939,7 @@ contract BluntDelegateTest is BluntSetup {
     ) = _formatDeployData();
 
     hevm.expectEmit(false, false, false, true);
-    emit RoundCreated(deployBluntDelegateData, 2, launchProjectData.data.duration, 1);
+    emit RoundCreated(deployBluntDelegateData, 3, launchProjectData.data.duration, 1);
     bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
   }
 
@@ -956,7 +963,10 @@ contract BluntDelegateTest is BluntSetup {
       '',
       ''
     );
+
     hevm.warp(100);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
 
     hevm.startPrank(_bluntProjectOwner);
     hevm.expectEmit(false, false, false, true);
@@ -1022,9 +1032,8 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_didPay_RoundClosed() public {
-    hevm.startPrank(_bluntProjectOwner);
+    hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
-    hevm.stopPrank();
 
     hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
     _jbETHPaymentTerminal.pay{value: _target}(
@@ -1162,14 +1171,14 @@ contract BluntDelegateTest is BluntSetup {
     _jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), user, 0, false, '', '');
 
     hevm.warp(100);
+    bluntDelegate.queueNextPhase();
+    hevm.warp(7 days + 100);
+
     hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
 
-    // Don't wait for the funding cycle to end
-    hevm.warp(100);
-
     uint256 tokensReturned = 1e14;
-    hevm.expectRevert(bytes4(keccak256('ROUND_CLOSED()')));
+    hevm.expectRevert(bytes4(keccak256('FUNDING_CYCLE_REDEEM_PAUSED()')));
     hevm.prank(user);
     _jbETHPaymentTerminal.redeemTokensOf(
       user,
@@ -1416,6 +1425,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(metadata.reservedRate, _afterRoundReservedRate);
     assertEq(metadata.redemptionRate, 0);
     assertBoolEq(metadata.global.pauseTransfers, false);
+    assertBoolEq(metadata.pauseRedeem, true);
     assertBoolEq(metadata.pausePay, true);
     assertBoolEq(metadata.useDataSourceForPay, false);
     assertBoolEq(metadata.useDataSourceForRedeem, false);

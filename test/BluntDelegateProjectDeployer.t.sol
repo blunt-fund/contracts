@@ -24,6 +24,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       delegateCloner,
       _jbController,
       _jbOperatorStore,
+      _bluntProjectId,
       address(uint160(uint256(keccak256('eth')))),
       address(uint160(uint256(keccak256('usdc'))))
     );
@@ -41,7 +42,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       _clone
     );
 
-    assertEq(projectId, 1);
+    assertEq(projectId, 2);
   }
 
   function testDelegateAddressIsProjectOwner() public {

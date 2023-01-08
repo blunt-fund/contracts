@@ -57,6 +57,8 @@ contract BluntSetup is DSTestPlus {
   // --------------------- internal stored properties ------------------- //
   //*********************************************************************//
 
+  address internal _bluntOwner = address(123456);
+  uint256 internal _bluntProjectId;
   address internal _projectOwner = address(123);
   address internal _beneficiary = address(69420);
   address internal _caller = address(696969);
@@ -72,6 +74,10 @@ contract BluntSetup is DSTestPlus {
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
   bool internal _clone = false;
+  uint256 internal _maxK = 500;
+  uint256 internal _minK = 150;
+  uint256 internal _upperBoundary = 1e13;
+  uint256 internal _lowerBoundary = 1e11;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
@@ -177,8 +183,8 @@ contract BluntSetup is DSTestPlus {
     _projectMetadata = JBProjectMetadata({content: 'myIPFSHash', domain: 1});
 
     _data = JBFundingCycleData({
-      duration: 14,
-      weight: 1000 * 10**18,
+      duration: 7 days,
+      weight: 1e21,
       discountRate: 450000000,
       ballot: IJBFundingCycleBallot(address(0))
     });
@@ -206,6 +212,42 @@ contract BluntSetup is DSTestPlus {
       metadata: 0x00
     });
 
+    // ---- Deploy BF Project ----
+    _bluntProjectId = _jbController.launchProjectFor(
+      _bluntOwner,
+      _projectMetadata,
+      _data,
+      JBFundingCycleMetadata({
+        global: JBGlobalFundingCycleMetadata({
+          allowSetTerminals: false,
+          allowSetController: false,
+          pauseTransfers: false
+        }),
+        reservedRate: 0,
+        redemptionRate: 0,
+        ballotRedemptionRate: 0,
+        pausePay: false,
+        pauseDistributions: false,
+        pauseRedeem: false,
+        pauseBurn: false,
+        allowMinting: false,
+        allowTerminalMigration: false,
+        allowControllerMigration: false,
+        holdFees: false,
+        preferClaimedTokenOverride: false,
+        useTotalOverflowForRedemptions: false,
+        useDataSourceForPay: false,
+        useDataSourceForRedeem: false,
+        dataSource: address(0),
+        metadata: 0
+      }),
+      0,
+      new JBGroupedSplits[](0),
+      new JBFundAccessConstraints[](0),
+      _terminals,
+      ''
+    );
+
     // ---- Deploy SliceCore Mock ----
     _sliceCore = ISliceCore(address(new SliceCoreMock()));
     hevm.label(address(_sliceCore), 'SliceCore');
@@ -214,7 +256,7 @@ contract BluntSetup is DSTestPlus {
     PriceFeedMock priceFeedMock = new PriceFeedMock();
     hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
     hevm.label(address(priceFeedMock), 'Price Feed');
-    
+
     // ---- Deploy Receiver Mock ----
     _receiver = new ReceiverMock();
     hevm.label(address(_receiver), 'Receiver');
@@ -249,10 +291,14 @@ contract BluntSetup is DSTestPlus {
     }
   }
 
-  function _formatDeployData() internal view returns(
-    DeployBluntDelegateData memory deployBluntDelegateData,
-    JBLaunchProjectData memory launchProjectData
-  ) {
+  function _formatDeployData()
+    internal
+    view
+    returns (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    )
+  {
     JBSplit[] memory _afterRoundSplits = new JBSplit[](2);
     _afterRoundSplits[0] = JBSplit({
       preferClaimed: false,
@@ -288,17 +334,18 @@ contract BluntSetup is DSTestPlus {
       _tokenSymbol,
       _enforceSlicerCreation,
       _isTargetUsd,
-      _isHardcapUsd
+      _isHardcapUsd,
+      _maxK,
+      _minK,
+      _upperBoundary,
+      _lowerBoundary
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);
     terminals[0] = IJBPaymentTerminal(_jbETHPaymentTerminal);
 
     launchProjectData = JBLaunchProjectData(
-      JBProjectMetadata({
-        content:'', 
-        domain: 0
-      }),
+      JBProjectMetadata({content: '', domain: 0}),
       JBFundingCycleData({
         duration: 7 days,
         weight: 1e15, // 0.001 tokens per ETH contributed
