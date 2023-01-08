@@ -177,8 +177,8 @@ contract BluntDelegate is IBluntDelegate {
   */
   uint256 public immutable MAX_K;
   uint256 public immutable MIN_K;
-  uint256 public immutable UPPER_BOUNDARY_USD;
-  uint256 public immutable LOWER_BOUNDARY_USD;
+  uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
+  uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -263,8 +263,8 @@ contract BluntDelegate is IBluntDelegate {
 
     MAX_K = _deployBluntDelegateData.maxK;
     MIN_K = _deployBluntDelegateData.minK;
-    UPPER_BOUNDARY_USD = _deployBluntDelegateData.upperBoundary;
-    LOWER_BOUNDARY_USD = _deployBluntDelegateData.lowerBoundary;
+    UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateData.upperFundraiseBoundary;
+    LOWER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateData.lowerFundraiseBoundary;
 
     bluntProjectId = _bluntProjectId;
     projectId = _projectId;
@@ -832,6 +832,8 @@ contract BluntDelegate is IBluntDelegate {
     delete metadata.global.pauseTransfers;
     /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
     metadata.pausePay = true;
+    /// Ensure distributions are enabled
+    metadata.pauseDistributions = false;
     /// Detach dataSource
     delete metadata.useDataSourceForPay;
     delete metadata.useDataSourceForRedeem;
@@ -882,19 +884,19 @@ contract BluntDelegate is IBluntDelegate {
     unchecked {
       uint256 raisedUsd = priceFeed.getQuote(uint128(raised), ethAddress, usdcAddress, 30 minutes);
       uint256 k;
-      if (raisedUsd < LOWER_BOUNDARY_USD) {
+      if (raisedUsd < LOWER_FUNDRAISE_BOUNDARY_USD) {
         k = MAX_K;
-      } else if (raisedUsd > UPPER_BOUNDARY_USD) {
+      } else if (raisedUsd > UPPER_FUNDRAISE_BOUNDARY_USD) {
         k = MIN_K;
       } else {
         /** @dev 
-          - [(MAX_K - MIN_K) * (raisedUsd - LOWER_BOUNDARY_USD)] cannot overflow since raisedUsd < UPPER_BOUNDARY_USD
+          - [(MAX_K - MIN_K) * (raisedUsd - LOWER_FUNDRAISE_BOUNDARY_USD)] cannot overflow since raisedUsd < UPPER_FUNDRAISE_BOUNDARY_USD
           - k cannot underflow since MAX_K > (MAX_K - MIN_K)
         */
         k =
           MAX_K -
-          (((MAX_K - MIN_K) * (raisedUsd - LOWER_BOUNDARY_USD)) /
-            (UPPER_BOUNDARY_USD - LOWER_BOUNDARY_USD));
+          (((MAX_K - MIN_K) * (raisedUsd - LOWER_FUNDRAISE_BOUNDARY_USD)) /
+            (UPPER_FUNDRAISE_BOUNDARY_USD - LOWER_FUNDRAISE_BOUNDARY_USD));
       }
 
       /// @dev overflows for [raised > 2^256 / MIN_K], which practically cannot be reached
