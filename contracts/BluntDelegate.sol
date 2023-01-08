@@ -893,10 +893,11 @@ contract BluntDelegate is IBluntDelegate {
           - [(MAX_K - MIN_K) * (raisedUsd - LOWER_FUNDRAISE_BOUNDARY_USD)] cannot overflow since raisedUsd < UPPER_FUNDRAISE_BOUNDARY_USD
           - k cannot underflow since MAX_K > (MAX_K - MIN_K)
         */
-        k =
-          MAX_K -
-          (((MAX_K - MIN_K) * (raisedUsd - LOWER_FUNDRAISE_BOUNDARY_USD)) /
-            (UPPER_FUNDRAISE_BOUNDARY_USD - LOWER_FUNDRAISE_BOUNDARY_USD));
+        // prettier-ignore
+        k = MAX_K - (
+          ((MAX_K - MIN_K) * (raisedUsd - LOWER_FUNDRAISE_BOUNDARY_USD)) /
+          (UPPER_FUNDRAISE_BOUNDARY_USD - LOWER_FUNDRAISE_BOUNDARY_USD)
+        );
       }
 
       /// @dev overflows for [raised > 2^256 / MIN_K], which practically cannot be reached
