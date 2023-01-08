@@ -20,7 +20,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     @notice
     Ratio between amount of eth contributed and tokens minted
   */
-  uint64 public constant TOKENS_PER_ETH = 1e15;
+  uint256 public constant TOKENS_PER_ETH = 1e15;
 
   /**
     @notice
@@ -28,15 +28,21 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   */
   address public immutable ethAddress;
 
-  /**
+  /** 
     @notice
     USDC address on Uniswap 
   */
   address public immutable usdcAddress;
 
+  /**
+    @notice
+    The ID of the Blunt Finance project.
+  */
+  uint256 public immutable bluntProjectId;
+
   /** 
     @notice
-    The controller with which new projects should be deployed. 
+    JB controller address
   */
   IJBController public immutable override controller;
 
@@ -61,12 +67,14 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     IBluntDelegateCloner _delegateCloner,
     IJBController _controller,
     IJBOperatorStore _operatorStore,
+    uint256 _bluntProjectId,
     address _ethAddress,
     address _usdcAddress
   ) JBOperatable(_operatorStore) {
     delegateDeployer = _delegateDeployer;
     delegateCloner = _delegateCloner;
     controller = _controller;
+    bluntProjectId = _bluntProjectId;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
   }
@@ -92,11 +100,13 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   ) external override returns (uint256 projectId) {
     // Get the project ID, optimistically knowing it will be one greater than the current count.
     projectId = controller.projects().count() + 1;
+
     address _delegateAddress;
     if (_clone) {
       // Deploy the data source contract as immutable clone
       _delegateAddress = delegateCloner.deployDelegateFor(
         controller,
+        bluntProjectId,
         projectId,
         _launchProjectData.data.duration,
         ethAddress,
@@ -107,6 +117,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
       // Deploy the data source contract.
       _delegateAddress = delegateDeployer.deployDelegateFor(
         controller,
+        bluntProjectId,
         projectId,
         _launchProjectData.data.duration,
         ethAddress,

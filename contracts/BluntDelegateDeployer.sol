@@ -14,16 +14,18 @@ contract BluntDelegateDeployer is IBluntDelegateDeployer {
     Deploys a BluntDelegate data source.
 
     @param _controller JBController address
+    @param _bluntProjectId The ID of the Blunt Finance project 
     @param _projectId The ID of the project for which the data source should apply.
     @param _duration Blunt round duration
     @param _ethAddress WETH address on Uniswap
     @param _usdcAddress USDC address on Uniswap
     @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a BluntDelegate data source.
-
+    
     @return newDelegate The address of the newly deployed data source.
   */
   function deployDelegateFor(
     IJBController _controller,
+    uint256 _bluntProjectId,
     uint256 _projectId,
     uint256 _duration,
     address _ethAddress,
@@ -33,6 +35,7 @@ contract BluntDelegateDeployer is IBluntDelegateDeployer {
     newDelegate = address(
       new BluntDelegate(
         _controller,
+        _bluntProjectId,
         _projectId,
         _duration,
         _ethAddress,
