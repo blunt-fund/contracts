@@ -9,6 +9,7 @@ interface IBluntDelegateDeployer {
 
   function deployDelegateFor(
     IJBController _controller,
+    uint256 _bluntProjectId,
     uint256 _projectId,
     uint256 _duration,
     address _ethAddress,

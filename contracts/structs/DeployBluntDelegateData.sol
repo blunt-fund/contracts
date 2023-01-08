@@ -11,11 +11,11 @@ struct DeployBluntDelegateData {
   IJBFundingCycleStore fundingCycleStore;
   ISliceCore sliceCore;
   address projectOwner;
-  uint88 hardcap;
-  uint88 target;
-  uint40 releaseTimelock;
-  uint40 transferTimelock;
-  uint16 afterRoundReservedRate;
+  uint256 hardcap;
+  uint256 target;
+  uint256 releaseTimelock;
+  uint256 transferTimelock;
+  uint256 afterRoundReservedRate;
   JBSplit[] afterRoundSplits;
   string tokenName;
   string tokenSymbol;
@@ -24,6 +24,6 @@ struct DeployBluntDelegateData {
   bool isHardcapUsd;
   uint256 maxK;
   uint256 minK;
-  uint256 upperBoundary;
-  uint256 lowerBoundary;
+  uint256 upperFundraiseBoundary;
+  uint256 lowerFundraiseBoundary;
 }
