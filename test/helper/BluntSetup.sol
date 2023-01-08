@@ -76,8 +76,8 @@ contract BluntSetup is DSTestPlus {
   bool internal _clone = false;
   uint256 internal _maxK = 500;
   uint256 internal _minK = 150;
-  uint256 internal _upperBoundary = 1e13;
-  uint256 internal _lowerBoundary = 1e11;
+  uint256 internal _upperFundraiseBoundary = 1e13;
+  uint256 internal _lowerFundraiseBoundary = 1e11;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   ISliceCore internal _sliceCore;
@@ -337,8 +337,8 @@ contract BluntSetup is DSTestPlus {
       _isHardcapUsd,
       _maxK,
       _minK,
-      _upperBoundary,
-      _lowerBoundary
+      _upperFundraiseBoundary,
+      _lowerFundraiseBoundary
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);
@@ -382,5 +382,29 @@ contract BluntSetup is DSTestPlus {
       terminals,
       '' // memo
     );
+  }
+  
+  /**
+    @notice
+    Helper function to calculate blunt fee based on raised amount.
+  */
+  function _calculateFee(uint256 raised) internal view returns (uint256 fee) {
+    unchecked {
+      uint256 raisedUsd = _priceFeed.getQuote(uint128(raised), address(uint160(uint256(keccak256('eth')))), address(0), 30 minutes);
+      uint256 k;
+      if (raisedUsd < _lowerFundraiseBoundary) {
+        k = _maxK;
+      } else if (raisedUsd > _upperFundraiseBoundary) {
+        k = _minK;
+      } else {
+        // prettier-ignore
+        k = _maxK - (
+          ((_maxK - _minK) * (raisedUsd - _lowerFundraiseBoundary)) /
+          (_upperFundraiseBoundary - _lowerFundraiseBoundary)
+        );
+      }
+
+      fee = (k * raised) / 10000;
+    }
   }
 }
