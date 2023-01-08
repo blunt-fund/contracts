@@ -126,19 +126,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
       );
     }
 
-    // Set the data source address as the data source of the provided metadata.
-    _launchProjectData.metadata.dataSource = _delegateAddress;
-    // Set the project to use the data source for its pay and redeem functions.
-    _launchProjectData.metadata.useDataSourceForPay = true;
-    _launchProjectData.metadata.useDataSourceForRedeem = true;
-    // Enable full redemptions
-    _launchProjectData.metadata.redemptionRate = JBConstants.MAX_REDEMPTION_RATE;
-    // Disable token transfers
-    _launchProjectData.metadata.global.pauseTransfers = true;
-
-    // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_ETH`
-    if (_launchProjectData.data.weight == 0 || _launchProjectData.data.weight % TOKENS_PER_ETH != 0)
-      revert INVALID_TOKEN_ISSUANCE();
+    _launchProjectData = _formatLaunchData(_launchProjectData, _delegateAddress);
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);
@@ -170,5 +158,42 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
       _launchProjectData.terminals,
       _launchProjectData.memo
     );
+  }
+
+  /** 
+    @notice
+    Format launch data for a project.
+
+    @param launchData Data necessary to fulfill the transaction to launch the project.
+    @param delegateAddress The address of the delegate contract.
+
+    TODO: Check all settings necessary to guarantee round functionality are correctly defined here.
+  */
+  function _formatLaunchData(
+    JBLaunchProjectData memory launchData,
+    address delegateAddress
+  ) private pure returns (JBLaunchProjectData memory) {
+    // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_ETH`
+    if (launchData.data.weight == 0 || launchData.data.weight % TOKENS_PER_ETH != 0)
+      revert INVALID_TOKEN_ISSUANCE();
+
+    // Set the data source address as the data source of the provided metadata.
+    launchData.metadata.dataSource = delegateAddress;
+    // Set the project to use the data source for its pay and redeem functions.
+    launchData.metadata.useDataSourceForPay = true;
+    launchData.metadata.useDataSourceForRedeem = true;
+    // Enable full redemptions
+    launchData.metadata.pauseRedeem = false;
+    launchData.metadata.redemptionRate = JBConstants.MAX_REDEMPTION_RATE;
+    // Disable token transfers
+    launchData.metadata.global.pauseTransfers = true;
+
+    // TODO: Force empty ballot?
+    // _launchProjectData.data.ballot = IJBFundingCycleBallot(address(0));
+
+    // TODO: Force empty splits?
+    // _launchProjectData.groupedSplits = new JBGroupedSplits[](0);
+
+    return launchData;
   }
 }
