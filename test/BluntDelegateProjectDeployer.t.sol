@@ -95,6 +95,38 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     assertEq(address(fundingCycle.ballot), address(0));
   }
 
+  function testSetDelegates() public {
+    assertEq(address(bluntDeployer.delegateDeployer()), address(delegateDeployer));
+    assertEq(address(bluntDeployer.delegateCloner()), address(delegateCloner));
+
+    IBluntDelegateDeployer delegateDeployer_ = IBluntDelegateDeployer(address(1));
+    IBluntDelegateCloner delegateCloner_ = IBluntDelegateCloner(address(2));
+
+    bluntDeployer._setDelegates(delegateDeployer_, delegateCloner_);
+
+    assertEq(address(bluntDeployer.delegateDeployer()), address(delegateDeployer_));
+    assertEq(address(bluntDeployer.delegateCloner()), address(delegateCloner_));
+  }
+
+  function testSetFees() public {
+    assertEq(bluntDeployer.maxK(), _maxK);
+    assertEq(bluntDeployer.minK(), _minK);
+    assertEq(bluntDeployer.upperFundraiseBoundary(), _upperFundraiseBoundary);
+    assertEq(bluntDeployer.lowerFundraiseBoundary(), _lowerFundraiseBoundary);
+
+    uint16 maxK_ = 200;
+    uint16 minK_ = 100;
+    uint56 upperFundraiseBoundary_ = 1e7;
+    uint56 lowerFundraiseBoundary_ = 1e6;
+
+    bluntDeployer._setFees(maxK_, minK_, upperFundraiseBoundary_, lowerFundraiseBoundary_);
+
+    assertEq(bluntDeployer.maxK(), maxK_);
+    assertEq(bluntDeployer.minK(), minK_);
+    assertEq(bluntDeployer.upperFundraiseBoundary(), upperFundraiseBoundary_);
+    assertEq(bluntDeployer.lowerFundraiseBoundary(), lowerFundraiseBoundary_);
+  }
+
   ///////////////////////////////////////
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
@@ -114,5 +146,45 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
     hevm.expectRevert(bytes4(keccak256('INVALID_TOKEN_ISSUANCE()')));
     bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
+  }
+
+  function testRevert_onlyOwner() public {
+    hevm.startPrank(address(1));
+    
+    hevm.expectRevert('Ownable: caller is not the owner');
+    bluntDeployer._setDelegates(IBluntDelegateDeployer(address(1)), IBluntDelegateCloner(address(2)));
+
+    hevm.expectRevert('Ownable: caller is not the owner');
+    bluntDeployer._setFees(300, 100, 1e7, 1e6);
+    
+    hevm.stopPrank();
+  }
+
+  function testRevert_setFees_exceededMaxFee() public {
+    uint16 maxK_ = 600;
+    uint16 minK_ = 100;
+    uint56 upperFundraiseBoundary_ = 1e7;
+    uint56 lowerFundraiseBoundary_ = 1e6;
+
+    hevm.expectRevert(bytes4(keccak256('EXCEEDED_MAX_FEE()')));
+    bluntDeployer._setFees(maxK_, minK_, upperFundraiseBoundary_, lowerFundraiseBoundary_);
+  }
+
+  function testRevert_setFees_invalidInputs() public {
+    uint16 maxK_ = 200;
+    uint16 minK_ = 300;
+    uint56 upperFundraiseBoundary_ = 1e7;
+    uint56 lowerFundraiseBoundary_ = 1e6;
+
+    hevm.expectRevert(bytes4(keccak256('INVALID_INPUTS()')));
+    bluntDeployer._setFees(maxK_, minK_, upperFundraiseBoundary_, lowerFundraiseBoundary_);
+
+    maxK_ = 300;
+    minK_ = 200;
+    upperFundraiseBoundary_ = 1e6;
+    lowerFundraiseBoundary_ = 1e7;
+
+    hevm.expectRevert(bytes4(keccak256('INVALID_INPUTS()')));
+    bluntDeployer._setFees(maxK_, minK_, upperFundraiseBoundary_, lowerFundraiseBoundary_);
   }
 }
