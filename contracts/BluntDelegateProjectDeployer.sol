@@ -144,7 +144,10 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
       _delegateAddress = delegateCloner.deployDelegateFor(_deployerData, _deployBluntDelegateData);
     } else {
       // Deploy the data source contract.
-      _delegateAddress = delegateDeployer.deployDelegateFor(_deployerData, _deployBluntDelegateData);
+      _delegateAddress = delegateDeployer.deployDelegateFor(
+        _deployerData,
+        _deployBluntDelegateData
+      );
     }
 
     _launchProjectData = _formatLaunchData(_launchProjectData, _delegateAddress);
@@ -249,6 +252,10 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     launchData.metadata.global.pauseTransfers = true;
     // Enforce empty ballot
     launchData.data.ballot = IJBFundingCycleBallot(address(0));
+
+    // Duration param is passed to the delegate contract to calculate the end time of the round,
+    // and then set to 0 prior to launch project to avoid the need to queue a FC.
+    launchData.data.duration = 0;
 
     return launchData;
   }
