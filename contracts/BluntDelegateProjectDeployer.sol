@@ -22,12 +22,6 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
 
   /**
     @notice
-    Ratio between amount of eth contributed and tokens minted
-  */
-  uint256 public constant TOKENS_PER_ETH = 1e15;
-
-  /**
-    @notice
     WETH address on Uniswap
   */
   address public immutable ethAddress;
@@ -239,8 +233,8 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     JBLaunchProjectData memory launchData,
     address delegateAddress
   ) private pure returns (JBLaunchProjectData memory) {
-    // Require weight to be non zero to allow for redemptions, and a multiple of `TOKENS_PER_ETH`
-    if (launchData.data.weight == 0 || launchData.data.weight % TOKENS_PER_ETH != 0)
+    // Require weight to be non zero to allow for redemptions
+    if (launchData.data.weight == 0)
       revert INVALID_TOKEN_ISSUANCE();
 
     // Set the data source address as the data source of the provided metadata.

@@ -41,9 +41,7 @@ import './AccessJBLib.sol';
 import '../structs/JBPayDataSourceFundingCycleMetadata.sol'; 
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
-import 'contracts/interfaces/ISliceCore.sol';
 import 'contracts/interfaces/IPriceFeed.sol';
-import '../mocks/SliceCoreMock.sol';
 import '../mocks/PriceFeedMock.sol';
 import '../mocks/ReceiverMock.sol';
 
@@ -68,7 +66,6 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _lockPeriod = 2 days;
   string internal _tokenName = 'tokenName';
   string internal _tokenSymbol = 'SYMBOL';
-  bool internal _enforceSlicerCreation = false;
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
   bool internal _clone = false;
@@ -78,7 +75,6 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _lowerFundraiseBoundary = 1e11;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
-  ISliceCore internal _sliceCore;
   IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
   ReceiverMock internal _receiver;
 
@@ -246,10 +242,6 @@ contract BluntSetup is DSTestPlus {
       ''
     );
 
-    // ---- Deploy SliceCore Mock ----
-    _sliceCore = ISliceCore(address(new SliceCoreMock()));
-    hevm.label(address(_sliceCore), 'SliceCore');
-
     // ---- Deploy Price Feed Mock ----
     PriceFeedMock priceFeedMock = new PriceFeedMock();
     hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
@@ -303,7 +295,7 @@ contract BluntSetup is DSTestPlus {
       preferAddToBalance: false,
       percent: JBConstants.SPLITS_TOTAL_PERCENT - 1000,
       projectId: 0,
-      beneficiary: payable(address(0)), // Gets replaced with slicer address later
+      beneficiary: payable(address(0)),
       lockedUntil: block.timestamp + _lockPeriod,
       allocator: IJBSplitAllocator(address(0))
     });
@@ -312,24 +304,18 @@ contract BluntSetup is DSTestPlus {
       preferAddToBalance: false,
       percent: 1000,
       projectId: 0,
-      beneficiary: payable(address(1)), // Gets replaced with slicer address later
+      beneficiary: payable(address(1)),
       lockedUntil: 0,
       allocator: IJBSplitAllocator(address(0))
     });
 
     deployBluntDelegateData = DeployBluntDelegateData(
       _jbDirectory,
-      _sliceCore,
       _bluntProjectOwner,
       _hardcap,
       _target,
-      _releaseTimelock,
-      _transferTimelock,
       _afterRoundReservedRate,
       _afterRoundSplits,
-      _tokenName,
-      _tokenSymbol,
-      _enforceSlicerCreation,
       _isTargetUsd,
       _isHardcapUsd
     );

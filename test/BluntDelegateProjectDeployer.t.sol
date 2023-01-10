@@ -131,23 +131,6 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
 
-  function testRevertInvalidWeight() public {
-    (
-      DeployBluntDelegateData memory deployBluntDelegateData,
-      JBLaunchProjectData memory launchProjectData
-    ) = _formatDeployData();
-
-    launchProjectData.data.weight = 0;
-
-    hevm.expectRevert(bytes4(keccak256('INVALID_TOKEN_ISSUANCE()')));
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
-
-    launchProjectData.data.weight = 1e14;
-
-    hevm.expectRevert(bytes4(keccak256('INVALID_TOKEN_ISSUANCE()')));
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
-  }
-
   function testRevert_onlyOwner() public {
     hevm.startPrank(address(1));
     
