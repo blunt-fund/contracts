@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import '@jbx-protocol/juice-contracts-v3/contracts/abstract/JBOperatable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/access/Ownable.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 
 contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable, Ownable {
