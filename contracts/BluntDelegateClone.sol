@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import './interfaces/ISliceCore.sol';
 import './interfaces/IBluntDelegateClone.sol';
 import './interfaces/IPriceFeed.sol';
-import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin-upgradeable/proxy/utils/Initializable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
 
 /// @title Blunt Round data source for Juicebox projects, based on Slice protocol (Clones implementation).

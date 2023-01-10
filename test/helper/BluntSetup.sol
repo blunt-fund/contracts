@@ -34,8 +34,6 @@ import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBToken.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBFundingCycleMetadataResolver.sol';
 
-import '@paulrberg/contracts/math/PRBMath.sol';
-
 import {DSTestPlus} from 'solmate/test/utils/DSTestPlus.sol';
 import 'forge-std/console2.sol';
 
@@ -74,9 +72,9 @@ contract BluntSetup is DSTestPlus {
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
   bool internal _clone = false;
-  uint256 internal _maxK = 500;
+  uint256 internal _maxK = 350;
   uint256 internal _minK = 150;
-  uint256 internal _upperFundraiseBoundary = 1e13;
+  uint256 internal _upperFundraiseBoundary = 2e13;
   uint256 internal _lowerFundraiseBoundary = 1e11;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
