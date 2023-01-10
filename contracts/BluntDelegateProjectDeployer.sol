@@ -8,13 +8,15 @@ import './interfaces/IBluntDelegateProjectDeployer.sol';
 
 contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable {
   //*********************************************************************//
-  // --------------------------- custom errors ------------------------- //
+  // ------------------------- custom errors --------------------------- //
   //*********************************************************************//
+  error EXCEEDED_MAX_FEE();
+  error INVALID_INPUTS();
   error INVALID_TOKEN_ISSUANCE();
 
   //*********************************************************************//
-  // --------------- public immutable stored properties ---------------- //
-  //************************************* ********************************//
+  // ----------------------- immutable storage ------------------------- //
+  //*********************************************************************//
 
   /**
     @notice
@@ -47,7 +49,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   IJBController public immutable override controller;
 
   //*********************************************************************//
-  // -------------------- public mutable storage ----------------------- //
+  // ------------------------ mutable storage -------------------------- //
   //*********************************************************************//
 
   /**
@@ -82,7 +84,11 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     IJBOperatorStore _operatorStore,
     uint256 _bluntProjectId,
     address _ethAddress,
-    address _usdcAddress
+    address _usdcAddress,
+    uint16 _maxK,
+    uint16 _minK,
+    uint56 _upperFundraiseBoundary,
+    uint56 _lowerFundraiseBoundary
   ) JBOperatable(_operatorStore) {
     delegateDeployer = _delegateDeployer;
     delegateCloner = _delegateCloner;
@@ -90,6 +96,10 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     bluntProjectId = _bluntProjectId;
     ethAddress = _ethAddress;
     usdcAddress = _usdcAddress;
+    maxK = _maxK;
+    minK = _minK;
+    upperFundraiseBoundary = _upperFundraiseBoundary;
+    lowerFundraiseBoundary = _lowerFundraiseBoundary;
   }
 
   //*********************************************************************//
@@ -197,8 +207,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     launchData.metadata.redemptionRate = JBConstants.MAX_REDEMPTION_RATE;
     // Disable token transfers
     launchData.metadata.global.pauseTransfers = true;
-
-    // TODO: Ensure it's good to force empty ballot?
+    // Enforce empty ballot
     launchData.data.ballot = IJBFundingCycleBallot(address(0));
 
     return launchData;

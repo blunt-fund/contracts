@@ -26,7 +26,11 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       _jbOperatorStore,
       _bluntProjectId,
       address(uint160(uint256(keccak256('eth')))),
-      address(uint160(uint256(keccak256('usdc'))))
+      address(uint160(uint256(keccak256('usdc')))),
+      uint16(_maxK),
+      uint16(_minK),
+      uint56(_upperFundraiseBoundary),
+      uint56(_lowerFundraiseBoundary)
     );
   }
 
@@ -81,7 +85,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       launchProjectData,
       _clone
     );
-    (, JBFundingCycleMetadata memory metadata) = _jbController.currentFundingCycleOf(projectId);
+    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController.currentFundingCycleOf(projectId);
 
     assertFalse(metadata.dataSource == address(2));
     assertBoolEq(metadata.useDataSourceForPay, true);
@@ -94,6 +98,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
   ///////////////////////////////////////
   /////////////// REVERTS ///////////////
   ///////////////////////////////////////
+
   function testRevertInvalidWeight() public {
     (
       DeployBluntDelegateData memory deployBluntDelegateData,

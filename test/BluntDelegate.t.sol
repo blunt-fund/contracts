@@ -56,7 +56,11 @@ contract BluntDelegateTest is BluntSetup {
       _jbOperatorStore,
       _bluntProjectId,
       address(uint160(uint256(keccak256('eth')))),
-      address(uint160(uint256(keccak256('usdc'))))
+      address(uint160(uint256(keccak256('usdc')))),
+      uint16(_maxK),
+      uint16(_minK),
+      uint56(_upperFundraiseBoundary),
+      uint56(_lowerFundraiseBoundary)
     );
 
     (
