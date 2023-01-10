@@ -34,8 +34,6 @@ import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBToken.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBFundingCycleMetadataResolver.sol';
 
-import '@paulrberg/contracts/math/PRBMath.sol';
-
 import {DSTestPlus} from 'solmate/test/utils/DSTestPlus.sol';
 import 'forge-std/console2.sol';
 
@@ -43,9 +41,7 @@ import './AccessJBLib.sol';
 import '../structs/JBPayDataSourceFundingCycleMetadata.sol'; 
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
-import 'contracts/interfaces/ISliceCore.sol';
 import 'contracts/interfaces/IPriceFeed.sol';
-import '../mocks/SliceCoreMock.sol';
 import '../mocks/PriceFeedMock.sol';
 import '../mocks/ReceiverMock.sol';
 
@@ -57,6 +53,8 @@ contract BluntSetup is DSTestPlus {
   // --------------------- internal stored properties ------------------- //
   //*********************************************************************//
 
+  address internal _bluntOwner = address(123456);
+  uint256 internal _bluntProjectId;
   address internal _projectOwner = address(123);
   address internal _beneficiary = address(69420);
   address internal _caller = address(696969);
@@ -68,12 +66,15 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _lockPeriod = 2 days;
   string internal _tokenName = 'tokenName';
   string internal _tokenSymbol = 'SYMBOL';
-  bool internal _enforceSlicerCreation = false;
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
+  bool internal _clone = false;
+  uint256 internal _maxK = 350;
+  uint256 internal _minK = 150;
+  uint256 internal _upperFundraiseBoundary = 2e13;
+  uint256 internal _lowerFundraiseBoundary = 1e11;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
-  ISliceCore internal _sliceCore;
   IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
   ReceiverMock internal _receiver;
 
@@ -176,8 +177,8 @@ contract BluntSetup is DSTestPlus {
     _projectMetadata = JBProjectMetadata({content: 'myIPFSHash', domain: 1});
 
     _data = JBFundingCycleData({
-      duration: 14,
-      weight: 1000 * 10**18,
+      duration: 7 days,
+      weight: 1e21,
       discountRate: 450000000,
       ballot: IJBFundingCycleBallot(address(0))
     });
@@ -205,15 +206,47 @@ contract BluntSetup is DSTestPlus {
       metadata: 0x00
     });
 
-    // ---- Deploy SliceCore Mock ----
-    _sliceCore = ISliceCore(address(new SliceCoreMock()));
-    hevm.label(address(_sliceCore), 'SliceCore');
+    // ---- Deploy BF Project ----
+    _bluntProjectId = _jbController.launchProjectFor(
+      _bluntOwner,
+      _projectMetadata,
+      _data,
+      JBFundingCycleMetadata({
+        global: JBGlobalFundingCycleMetadata({
+          allowSetTerminals: false,
+          allowSetController: false,
+          pauseTransfers: false
+        }),
+        reservedRate: 0,
+        redemptionRate: 0,
+        ballotRedemptionRate: 0,
+        pausePay: false,
+        pauseDistributions: false,
+        pauseRedeem: false,
+        pauseBurn: false,
+        allowMinting: false,
+        allowTerminalMigration: false,
+        allowControllerMigration: false,
+        holdFees: false,
+        preferClaimedTokenOverride: false,
+        useTotalOverflowForRedemptions: false,
+        useDataSourceForPay: false,
+        useDataSourceForRedeem: false,
+        dataSource: address(0),
+        metadata: 0
+      }),
+      0,
+      new JBGroupedSplits[](0),
+      new JBFundAccessConstraints[](0),
+      _terminals,
+      ''
+    );
 
     // ---- Deploy Price Feed Mock ----
     PriceFeedMock priceFeedMock = new PriceFeedMock();
     hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
     hevm.label(address(priceFeedMock), 'Price Feed');
-    
+
     // ---- Deploy Receiver Mock ----
     _receiver = new ReceiverMock();
     hevm.label(address(_receiver), 'Receiver');
@@ -248,17 +281,21 @@ contract BluntSetup is DSTestPlus {
     }
   }
 
-  function _formatDeployData() internal view returns(
-    DeployBluntDelegateData memory deployBluntDelegateData,
-    JBLaunchProjectData memory launchProjectData
-  ) {
+  function _formatDeployData()
+    internal
+    view
+    returns (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    )
+  {
     JBSplit[] memory _afterRoundSplits = new JBSplit[](2);
     _afterRoundSplits[0] = JBSplit({
       preferClaimed: false,
       preferAddToBalance: false,
       percent: JBConstants.SPLITS_TOTAL_PERCENT - 1000,
       projectId: 0,
-      beneficiary: payable(address(0)), // Gets replaced with slicer address later
+      beneficiary: payable(address(0)),
       lockedUntil: block.timestamp + _lockPeriod,
       allocator: IJBSplitAllocator(address(0))
     });
@@ -267,25 +304,18 @@ contract BluntSetup is DSTestPlus {
       preferAddToBalance: false,
       percent: 1000,
       projectId: 0,
-      beneficiary: payable(address(1)), // Gets replaced with slicer address later
+      beneficiary: payable(address(1)),
       lockedUntil: 0,
       allocator: IJBSplitAllocator(address(0))
     });
 
     deployBluntDelegateData = DeployBluntDelegateData(
       _jbDirectory,
-      _jbFundingCycleStore,
-      _sliceCore,
       _bluntProjectOwner,
       _hardcap,
       _target,
-      _releaseTimelock,
-      _transferTimelock,
       _afterRoundReservedRate,
       _afterRoundSplits,
-      _tokenName,
-      _tokenSymbol,
-      _enforceSlicerCreation,
       _isTargetUsd,
       _isHardcapUsd
     );
@@ -294,10 +324,7 @@ contract BluntSetup is DSTestPlus {
     terminals[0] = IJBPaymentTerminal(_jbETHPaymentTerminal);
 
     launchProjectData = JBLaunchProjectData(
-      JBProjectMetadata({
-        content:'', 
-        domain: 0
-      }),
+      JBProjectMetadata({content: '', domain: 0}),
       JBFundingCycleData({
         duration: 7 days,
         weight: 1e15, // 0.001 tokens per ETH contributed
@@ -334,5 +361,29 @@ contract BluntSetup is DSTestPlus {
       terminals,
       '' // memo
     );
+  }
+  
+  /**
+    @notice
+    Helper function to calculate blunt fee based on raised amount.
+  */
+  function _calculateFee(uint256 raised) internal view returns (uint256 fee) {
+    unchecked {
+      uint256 raisedUsd = _priceFeed.getQuote(uint128(raised), address(uint160(uint256(keccak256('eth')))), address(0), 30 minutes);
+      uint256 k;
+      if (raisedUsd < _lowerFundraiseBoundary) {
+        k = _maxK;
+      } else if (raisedUsd > _upperFundraiseBoundary) {
+        k = _minK;
+      } else {
+        // prettier-ignore
+        k = _maxK - (
+          ((_maxK - _minK) * (raisedUsd - _lowerFundraiseBoundary)) /
+          (_upperFundraiseBoundary - _lowerFundraiseBoundary)
+        );
+      }
+
+      fee = (k * raised) / 10000;
+    }
   }
 }

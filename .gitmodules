@@ -10,3 +10,22 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/brockelmore/forge-std
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
+	branch = v4.8.0
+[submodule "lib/openzeppelin-contracts-upgradeable"]
+	path = lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/openzeppelin/openzeppelin-contracts-upgradeable
+	branch = v4.8.0
+[submodule "lib/prb-contracts"]
+	path = lib/prb-contracts
+	url = https://github.com/paulrberg/prb-contracts
+	branch = v4.1.1
+[submodule "lib/juice-contracts-v3"]
+	path = lib/juice-contracts-v3
+	url = https://github.com/jbx-protocol/juice-contracts-v3
+[submodule "lib/prb-math"]
+	path = lib/prb-math
+	url = https://github.com/paulrberg/prb-math
+	branch = v2.5.0

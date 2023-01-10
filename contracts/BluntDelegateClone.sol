@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import './interfaces/IBluntDelegate.sol';
+import './interfaces/IBluntDelegateClone.sol';
 import './interfaces/IPriceFeed.sol';
+import '@openzeppelin-upgradeable/proxy/utils/Initializable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
 
 /// @title Base Blunt Finance data source for Juicebox projects.
 /// @author jacopo <jacopo@slice.so>
 /// @notice Permissionless funding rounds with target, hardcap, deadline and a set of pre-defined rules.
-contract BluntDelegate is IBluntDelegate {
+contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
@@ -50,86 +51,88 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The directory of terminals and controllers for projects.
   */
-  IJBDirectory private immutable directory;
+  IJBDirectory private directory;
 
-  IJBController private immutable controller;
+  IJBController private controller;
 
   /**
     @notice
     The ID of the Blunt Finance project.
   */
-  uint256 public immutable bluntProjectId;
+  uint48 public bluntProjectId;
 
   /**
     @notice
     The ID of the project.
   */
-  uint256 public immutable projectId;
+  uint48 public projectId;
 
   /**
     @notice
     Constants used to calculate Blunt Finance fee
   */
-  uint256 public immutable MAX_K;
-  uint256 public immutable MIN_K;
-  uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
-  uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
+  uint16 public MAX_K;
+  uint16 public MIN_K;
+  uint56 public UPPER_FUNDRAISE_BOUNDARY_USD;
+  uint56 public LOWER_FUNDRAISE_BOUNDARY_USD;
 
   /**
     @notice
     WETH address on Uniswap
   */
-  address private immutable ethAddress;
+  address private ethAddress;
 
   /**
     @notice
     USDC address on Uniswap
   */
-  address private immutable usdcAddress;
+  address private usdcAddress;
 
   /** 
     @notice
     The owner of the project once the blunt round is concluded successfully.
   */
-  address private immutable projectOwner;
+  address private projectOwner;
 
   /** 
     @notice
     The minimum amount of contributions while this data source is in effect.
     When `isTargetUsd` is enabled, it is a 6 point decimal number.
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint256 private immutable target;
+  uint88 private target;
 
   /** 
     @notice
     The maximum amount of contributions while this data source is in effect. 
     When `isHardcapUsd` is enabled, it is a 6 point decimal number.
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint256 private immutable hardcap;
+  uint88 private hardcap;
 
   /** 
     @notice
     Reserved rate to be set in case of a successful round
   */
-  uint256 private immutable afterRoundReservedRate;
+  uint16 private afterRoundReservedRate;
 
   /**
     @notice
     Deadline of the round
   */
-  uint256 private immutable deadline;
+  uint40 private deadline;
 
   /**
     @notice
     True if a target is expressed in USD
   */
-  bool private immutable isTargetUsd;
+  bool private isTargetUsd;
 
   /**
     @notice
     True if a hardcap is expressed in USD
   */
-  bool private immutable isHardcapUsd;
+  bool private isHardcapUsd;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -138,6 +141,7 @@ contract BluntDelegate is IBluntDelegate {
   /**
     @notice
     Total contributions received during round
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
   uint248 private totalContributions;
 
@@ -164,13 +168,27 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
+   * @dev Constructor to prevent initializing implementation
+   */
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  //*********************************************************************//
+  // -------------------------- initializer ---------------------------- //
+  //*********************************************************************//
+
+  /**
+    @notice Initializes the contract as immutable clone.
+
     @param _deployBluntDelegateDeployerData Deployment data sent by deployer contract
     @param _deployBluntDelegateData Deployment data sent by user
   */
-  constructor(
+  function initialize(
     DeployBluntDelegateDeployerData memory _deployBluntDelegateDeployerData,
     DeployBluntDelegateData memory _deployBluntDelegateData
-  ) {
+  ) external override initializer {
     MAX_K = _deployBluntDelegateDeployerData.maxK;
     MIN_K = _deployBluntDelegateDeployerData.minK;
     UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.upperFundraiseBoundary;
@@ -192,7 +210,7 @@ contract BluntDelegate is IBluntDelegate {
     /// Set deadline based on round duration
     deadline = _deployBluntDelegateDeployerData.duration == 0
       ? 0
-      : block.timestamp + _deployBluntDelegateDeployerData.duration;
+      : uint40(block.timestamp + _deployBluntDelegateDeployerData.duration);
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {

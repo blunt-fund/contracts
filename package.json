@@ -9,11 +9,6 @@
   },
   "version": "1.0.0",
   "license": "MIT",
-  "dependencies": {
-    "@jbx-protocol/juice-contracts-v3": "^2.0.2",
-    "@openzeppelin/contracts": "^4.6.0",
-    "@paulrberg/contracts": "^3.7.0"
-  },
   "devDependencies": {
     "prettier": "^2.7.1",
     "prettier-plugin-solidity": "^1.0.0-rc.1",
@@ -22,8 +17,6 @@
   },
   "scripts": {
     "lint": "prettier --write **.sol",
-    "pretty": "prettier --write \"./**/*.{js,jsx,json,sol}\"",
-    "deploy-rinkeby": "source .env && forge script DeployRinkeby --rpc-url $RINKEBY_RPC_PROVIDER_URL --broadcast --mnemonic-paths mnemonic.txt --verify --etherscan-api-key $ETHERSCAN_API_KEY --sender $SENDER_ADDRESS --optimize --optimizer-runs 1 -vvv",
-    "deploy-mainnet": "source .env && forge script DeployMainnet --rpc-url $MAINNET_RPC_PROVIDER_URL --broadcast --mnemonic-paths mnemonic.txt --verify --etherscan-api-key $ETHERSCAN_API_KEY --sender $SENDER_ADDRESS --optimize --optimizer runs 1 -vvv"
+    "pretty": "prettier --write \"./**/*.{js,jsx,json,sol}\""
   }
 }
