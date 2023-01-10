@@ -353,7 +353,7 @@ contract BluntDelegate is IBluntDelegate {
   /**
     @notice 
     Part of IJBRedemptionDelegate, this function gets called when the beneficiary redeems tokens. 
-    It will update storage for the slices mint if conditions are met.
+    It will update storage for the slices mint if conditions are met. 
 
     @dev 
     This function will revert if the contract calling is not one of the project's terminals. 
@@ -370,11 +370,8 @@ contract BluntDelegate is IBluntDelegate {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    if (isRoundClosed) {
-      /// Revert if round has been closed successfully
-      if (isTargetReached()) revert ROUND_CLOSED();
-    } else {
-      /// If round is open, execute logic to keep track of slices to issue
+    /// If round is open, execute logic to keep track of slices to issue
+    if (!isRoundClosed) {
       /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
       if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
