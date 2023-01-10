@@ -22,3 +22,6 @@
 	path = lib/prb-contracts
 	url = https://github.com/paulrberg/prb-contracts
 	branch = v4.1.1
+[submodule "lib/juice-contracts-v3"]
+	path = lib/juice-contracts-v3
+	url = https://github.com/jbx-protocol/juice-contracts-v3
