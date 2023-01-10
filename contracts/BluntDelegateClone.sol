@@ -2,14 +2,15 @@
 pragma solidity 0.8.17;
 
 import './interfaces/ISliceCore.sol';
-import './interfaces/IBluntDelegate.sol';
+import './interfaces/IBluntDelegateClone.sol';
 import './interfaces/IPriceFeed.sol';
+import '@openzeppelin-upgradeable/proxy/utils/Initializable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
 
-/// @title Blunt Round data source for Juicebox projects, based on Slice protocol.
+/// @title Blunt Round data source for Juicebox projects, based on Slice protocol (Clones implementation).
 /// @author jacopo <jacopo@slice.so>
 /// @notice Funding rounds with pre-defined rules which reward contributors with tokens and slices.
-contract BluntDelegate is IBluntDelegate {
+contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
@@ -48,13 +49,13 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Ratio between amount of tokens contributed and slices minted
   */
-  uint256 public constant TOKENS_PER_SLICE = 1e15; /// 1 slice every 0.001 ETH
+  uint256 private constant TOKENS_PER_SLICE = 1e15; /// 1 slice every 0.001 ETH
 
   /**
     @notice
     Max total contribution allowed, calculated from `TOKENS_PER_SLICE * type(uint32).max`
   */
-  uint256 public constant MAX_CONTRIBUTION = 4.2e6 ether;
+  uint256 private constant MAX_CONTRIBUTION = 4.2e6 ether;
 
   /** 
     @notice 
@@ -72,110 +73,113 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The directory of terminals and controllers for projects.
   */
-  IJBDirectory private immutable directory;
+  IJBDirectory private directory;
 
-  IJBController private immutable controller;
+  IJBController private controller;
 
   /**
     @notice
     SliceCore instance
   */
-  ISliceCore private immutable sliceCore;
+  ISliceCore private sliceCore;
 
   /**
     @notice
     The ID of the Blunt Finance project.
   */
-  uint256 public immutable bluntProjectId;
+  uint48 public bluntProjectId;
 
   /**
     @notice
     The ID of the project.
   */
-  uint256 public immutable projectId;
+  uint48 public projectId;
 
   /**
     @notice
     Constants used to calculate Blunt Finance fee
   */
-  uint256 public immutable MAX_K;
-  uint256 public immutable MIN_K;
-  uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
-  uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
+  uint16 public MAX_K;
+  uint16 public MIN_K;
+  uint56 public UPPER_FUNDRAISE_BOUNDARY_USD;
+  uint56 public LOWER_FUNDRAISE_BOUNDARY_USD;
 
   /**
     @notice
     WETH address on Uniswap
   */
-  address private immutable ethAddress;
+  address private ethAddress;
 
   /**
     @notice
     USDC address on Uniswap
   */
-  address private immutable usdcAddress;
+  address private usdcAddress;
+
 
   /** 
     @notice
     The owner of the project once the blunt round is concluded successfully.
   */
-  address private immutable projectOwner;
+  address private projectOwner;
 
   /** 
     @notice
     The minimum amount of contributions while this data source is in effect.
     When `isTargetUsd` is enabled, it is a 6 point decimal number.
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint256 private immutable target;
+  uint88 private target;
 
   /** 
     @notice
     The maximum amount of contributions while this data source is in effect. 
     When `isHardcapUsd` is enabled, it is a 6 point decimal number.
+    @dev uint88 is sufficient as it cannot be higher than `MAX_CONTRIBUTION`
   */
-  uint256 private immutable hardcap;
+  uint88 private hardcap;
 
   /**  
     @notice
     The timestamp when the slicer becomes releasable.
   */
-  uint256 private immutable releaseTimelock;
+  uint40 private releaseTimelock;
 
   /** 
     @notice
     The timestamp when the slicer becomes transferable.
   */
-  uint256 private immutable transferTimelock;
+  uint40 private transferTimelock;
 
   /** 
     @notice
     Reserved rate to be set in case of a successful round
   */
-  uint256 private immutable afterRoundReservedRate;
+  uint16 private afterRoundReservedRate;
 
   /**
     @notice
     Deadline of the round
   */
-  uint256 private immutable deadline;
+  uint40 private deadline;
 
   /**
     @notice
     True if a target is expressed in USD
   */
-  bool private immutable isTargetUsd;
+  bool private isTargetUsd;
 
   /**
     @notice
     True if a hardcap is expressed in USD
   */
-  bool private immutable isHardcapUsd;
+  bool private isHardcapUsd;
 
   /**
     @notice
     True if a slicer is created when round closes successfully
   */
-  bool private immutable isSlicerToBeCreated;
+  bool private isSlicerToBeCreated;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -232,13 +236,27 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
+   * @dev Constructor to prevent initializing implementation
+   */
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  //*********************************************************************//
+  // -------------------------- initializer ---------------------------- //
+  //*********************************************************************//
+
+  /**
+    @notice Initializes the contract as immutable clone.
+
     @param _deployBluntDelegateDeployerData Deployment data sent by deployer contract
     @param _deployBluntDelegateData Deployment data sent by user
   */
-  constructor(
+  function initialize(
     DeployBluntDelegateDeployerData memory _deployBluntDelegateDeployerData,
     DeployBluntDelegateData memory _deployBluntDelegateData
-  ) {
+  ) external override initializer {
     if (_deployBluntDelegateData.projectOwner.code.length != 0)
       _doSafeTransferAcceptanceCheckERC721(_deployBluntDelegateData.projectOwner);
 
@@ -278,7 +296,7 @@ contract BluntDelegate is IBluntDelegate {
     /// Set deadline based on round duration
     deadline = _deployBluntDelegateDeployerData.duration == 0
       ? 0
-      : block.timestamp + _deployBluntDelegateDeployerData.duration;
+      : uint40(block.timestamp + _deployBluntDelegateDeployerData.duration);
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
@@ -295,6 +313,7 @@ contract BluntDelegate is IBluntDelegate {
       _deployBluntDelegateDeployerData.duration
     );
   }
+  
 
   //*********************************************************************//
   // ---------------------- external transactions ---------------------- //

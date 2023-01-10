@@ -7,16 +7,17 @@ struct RoundInfo {
   uint256 totalContributions;
   uint256 target;
   uint256 hardcap;
-  uint40 releaseTimelock;
-  uint40 transferTimelock;
+  uint256 releaseTimelock;
+  uint256 transferTimelock;
   address projectOwner;
-  uint40 fundingCycleRound;
-  uint16 afterRoundReservedRate;
+  uint256 afterRoundReservedRate;
   JBSplit[] afterRoundSplits;
   string tokenName;
   string tokenSymbol;
   bool isRoundClosed;
-  bool isQueued;
+  uint256 deadline;
+  bool isTargetUsd;
+  bool isHardcapUsd;
   bool isSlicerToBeCreated;
   uint256 slicerId;
 }
