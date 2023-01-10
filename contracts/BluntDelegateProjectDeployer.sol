@@ -4,9 +4,10 @@ pragma solidity 0.8.17;
 import '@jbx-protocol/juice-contracts-v3/contracts/abstract/JBOperatable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 
-contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable {
+contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable, Ownable {
   //*********************************************************************//
   // ------------------------- custom errors --------------------------- //
   //*********************************************************************//
@@ -150,6 +151,45 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);
+  }
+
+  /** 
+    @notice
+    Update delegate addresses. Can only be called by contract owner.
+
+    @param newDelegateDeployer_ New delegateDeployer address
+    @param newDelegateCloner_ new delegateCloner address
+  */
+  function _setDelegates(
+    IBluntDelegateDeployer newDelegateDeployer_,
+    IBluntDelegateCloner newDelegateCloner_
+  ) external override onlyOwner {
+    delegateDeployer = newDelegateDeployer_;
+    delegateCloner = newDelegateCloner_;
+  }
+
+  /** 
+    @notice
+    Update blunt fees. Can only be called by contract owner.
+
+    @param maxK_ Max K value for _calculateFee
+    @param minK_ Min K value for _calculateFee
+    @param upperFundraiseBoundary_ Upper foundraise boundary value for _calculateFee
+    @param lowerFundraiseBoundary_ Lower foundraise boundary value for _calculateFee
+  */
+  function _setFees(
+    uint16 maxK_,
+    uint16 minK_,
+    uint56 upperFundraiseBoundary_,
+    uint56 lowerFundraiseBoundary_
+  ) external override onlyOwner {
+    if (maxK_ > 500) revert EXCEEDED_MAX_FEE();
+    if (minK_ > maxK_ || lowerFundraiseBoundary_ > upperFundraiseBoundary_) revert INVALID_INPUTS();
+
+    maxK = maxK_;
+    minK = minK_;
+    upperFundraiseBoundary = upperFundraiseBoundary_;
+    lowerFundraiseBoundary = lowerFundraiseBoundary_;
   }
 
   //*********************************************************************//
