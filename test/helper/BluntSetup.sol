@@ -334,11 +334,7 @@ contract BluntSetup is DSTestPlus {
       _tokenSymbol,
       _enforceSlicerCreation,
       _isTargetUsd,
-      _isHardcapUsd,
-      _maxK,
-      _minK,
-      _upperFundraiseBoundary,
-      _lowerFundraiseBoundary
+      _isHardcapUsd
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);

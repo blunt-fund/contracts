@@ -74,6 +74,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     launchProjectData.metadata.useDataSourceForRedeem = false;
     launchProjectData.metadata.redemptionRate = 2;
     launchProjectData.metadata.global.pauseTransfers = false;
+    launchProjectData.data.ballot = IJBFundingCycleBallot(address(1));
 
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
@@ -87,6 +88,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     assertBoolEq(metadata.useDataSourceForRedeem, true);
     assertEq(metadata.redemptionRate, JBConstants.MAX_REDEMPTION_RATE);
     assertBoolEq(metadata.global.pauseTransfers, true);
+    assertEq(address(fundingCycle.ballot), address(0));
   }
 
   ///////////////////////////////////////

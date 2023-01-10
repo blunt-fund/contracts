@@ -198,11 +198,8 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     // Disable token transfers
     launchData.metadata.global.pauseTransfers = true;
 
-    // TODO: Force empty ballot?
-    // _launchProjectData.data.ballot = IJBFundingCycleBallot(address(0));
-
-    // TODO: Force empty splits?
-    // _launchProjectData.groupedSplits = new JBGroupedSplits[](0);
+    // TODO: Ensure it's good to force empty ballot?
+    launchData.data.ballot = IJBFundingCycleBallot(address(0));
 
     return launchData;
   }

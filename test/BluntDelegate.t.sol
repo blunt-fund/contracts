@@ -1581,6 +1581,7 @@ contract BluntDelegateTest is BluntSetup {
       _bluntProjectId
     );
     assertEq(distributionLimit, bluntFee);
+    assertEq(projectBalance, totalContributions_ - bluntFee);
     assertEq(bfBalance, bluntFee);
 
     address owner = _jbProjects.ownerOf(projectId_);
