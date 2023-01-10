@@ -22,7 +22,6 @@ contract BluntDelegate is IBluntDelegate {
   error ROUND_CLOSED();
   error ROUND_NOT_CLOSED();
   error NOT_PROJECT_OWNER();
-  error ALREADY_QUEUED();
   error TOKEN_NOT_SET();
   error CANNOT_ACCEPT_ERC1155();
   error CANNOT_ACCEPT_ERC721();
@@ -33,8 +32,7 @@ contract BluntDelegate is IBluntDelegate {
   event RoundCreated(
     DeployBluntDelegateData deployBluntDelegateData,
     uint256 projectId,
-    uint256 duration,
-    uint256 currentFundingCycle
+    uint256 duration
   );
   event ClaimedSlices(address beneficiary, uint256 amount);
   event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
@@ -97,8 +95,6 @@ contract BluntDelegate is IBluntDelegate {
   */
   IJBDirectory private immutable directory;
 
-  IJBFundingCycleStore private immutable fundingCycleStore;
-
   IJBController private immutable controller;
 
   /**
@@ -150,12 +146,6 @@ contract BluntDelegate is IBluntDelegate {
     The timestamp when the slicer becomes transferable.
   */
   uint256 private immutable transferTimelock;
-
-  /** 
-    @notice
-    The number of the funding cycle related to the blunt round.
-  */
-  uint256 private immutable fundingCycleRound;
 
   /** 
     @notice
@@ -256,14 +246,13 @@ contract BluntDelegate is IBluntDelegate {
     MIN_K = uint16(_deployBluntDelegateDeployerData.minK);
     UPPER_FUNDRAISE_BOUNDARY_USD = uint56(_deployBluntDelegateDeployerData.upperFundraiseBoundary);
     LOWER_FUNDRAISE_BOUNDARY_USD = uint56(_deployBluntDelegateDeployerData.lowerFundraiseBoundary);
-
     bluntProjectId = _deployBluntDelegateDeployerData.bluntProjectId;
     projectId = _deployBluntDelegateDeployerData.projectId;
     ethAddress = _deployBluntDelegateDeployerData.ethAddress;
     usdcAddress = _deployBluntDelegateDeployerData.usdcAddress;
     controller = _deployBluntDelegateDeployerData.controller;
+
     directory = _deployBluntDelegateData.directory;
-    fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
     sliceCore = _deployBluntDelegateData.sliceCore;
     projectOwner = _deployBluntDelegateData.projectOwner;
     releaseTimelock = _deployBluntDelegateData.releaseTimelock;
@@ -300,23 +289,10 @@ contract BluntDelegate is IBluntDelegate {
       }
     }
 
-    uint256 currentFundingCycle;
-    unchecked {
-      currentFundingCycle =
-        _deployBluntDelegateData
-          .fundingCycleStore
-          .currentOf(_deployBluntDelegateDeployerData.projectId)
-          .number +
-        1;
-    }
-    /// Store current funding cycle
-    fundingCycleRound = currentFundingCycle;
-
     emit RoundCreated(
       _deployBluntDelegateData,
       _deployBluntDelegateDeployerData.projectId,
-      _deployBluntDelegateDeployerData.duration,
-      currentFundingCycle
+      _deployBluntDelegateDeployerData.duration
     );
   }
 
@@ -717,7 +693,6 @@ contract BluntDelegate is IBluntDelegate {
       releaseTimelock,
       transferTimelock,
       projectOwner,
-      fundingCycleRound,
       afterRoundReservedRate,
       afterRoundSplits,
       tokenName,
