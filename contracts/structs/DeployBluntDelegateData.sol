@@ -9,11 +9,11 @@ struct DeployBluntDelegateData {
   IJBDirectory directory;
   ISliceCore sliceCore;
   address projectOwner;
-  uint256 hardcap;
-  uint256 target;
-  uint256 releaseTimelock;
-  uint256 transferTimelock;
-  uint256 afterRoundReservedRate;
+  uint88 hardcap;
+  uint88 target;
+  uint40 releaseTimelock;
+  uint40 transferTimelock;
+  uint16 afterRoundReservedRate;
   JBSplit[] afterRoundSplits;
   string tokenName;
   string tokenSymbol;

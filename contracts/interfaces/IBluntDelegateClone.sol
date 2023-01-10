@@ -5,11 +5,7 @@ import './IBluntDelegate.sol';
 
 interface IBluntDelegateClone is IBluntDelegate {
   function initialize(
-    IJBController _controller,
-    uint256 _projectId,
-    uint256 _duration,
-    address _ethAddress,
-    address _usdcAddress,
+    DeployBluntDelegateDeployerData memory _deployBluntDelegateDeployerData,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) external;
 }

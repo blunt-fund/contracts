@@ -17,7 +17,20 @@ contract BluntDelegateProjectClonerTest is BluntDelegateProjectDeployerTest {
     (DeployBluntDelegateData memory deployBluntDelegateData, ) = _formatDeployData();
     IBluntDelegateClone implementation = IBluntDelegateClone(delegateCloner.implementation());
 
+    DeployBluntDelegateDeployerData memory _deployerData = DeployBluntDelegateDeployerData(
+      _jbController,
+      uint48(_bluntProjectId),
+      2,
+      0,
+      address(1),
+      address(2),
+      uint16(_maxK),
+      uint16(_minK),
+      uint56(_upperFundraiseBoundary),
+      uint56(_lowerFundraiseBoundary)
+    );
+
     hevm.expectRevert('Initializable: contract is already initialized');
-    implementation.initialize(_jbController, 1, 0, address(0), address(0), deployBluntDelegateData);
+    implementation.initialize(_deployerData, deployBluntDelegateData);
   }
 }

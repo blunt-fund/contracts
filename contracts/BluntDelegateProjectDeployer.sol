@@ -57,6 +57,8 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   /**
     @notice
     Parameters used to calculate Blunt Finance round fees
+    @dev 
+    uint56 is enough as allows for boundaries of up to 70B USD (7e16 with 6 decimals)
   */
   uint16 public maxK;
   uint16 public minK;
@@ -128,9 +130,9 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
 
     DeployBluntDelegateDeployerData memory _deployerData = DeployBluntDelegateDeployerData(
       controller,
-      bluntProjectId,
-      projectId,
-      _launchProjectData.data.duration,
+      uint48(bluntProjectId),
+      uint48(projectId),
+      uint40(_launchProjectData.data.duration),
       ethAddress,
       usdcAddress,
       maxK,

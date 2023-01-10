@@ -31,21 +31,13 @@ contract BluntDelegateCloner is IBluntDelegateCloner {
     @notice
     Deploys a BluntDelegate data source as immutable clone.
 
-    @param _controller JBController address
-    @param _projectId The ID of the project for which the data source should apply.
-    @param _duration Blunt round duration
-    @param _ethAddress WETH address on Uniswap
-    @param _usdcAddress USDC address on Uniswap
+    @param _deployBluntDelegateDeployerData Data sent from the BluntDelegateProjectDeployer contract
     @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a BluntDelegate data source.
 
     @return newDelegate The address of the newly deployed data source.
   */
   function deployDelegateFor(
-    IJBController _controller,
-    uint256 _projectId,
-    uint256 _duration,
-    address _ethAddress,
-    address _usdcAddress,
+    DeployBluntDelegateDeployerData memory _deployBluntDelegateDeployerData,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) external returns (address newDelegate) {
     // Deploys proxy clone
@@ -53,14 +45,10 @@ contract BluntDelegateCloner is IBluntDelegateCloner {
 
     // Initialize proxy
     BluntDelegateClone(newDelegate).initialize(
-      _controller,
-      _projectId,
-      _duration,
-      _ethAddress,
-      _usdcAddress,
+      _deployBluntDelegateDeployerData,
       _deployBluntDelegateData
     );
 
-    emit DelegateDeployed(_projectId, newDelegate);
+    emit DelegateDeployed(_deployBluntDelegateDeployerData.projectId, newDelegate);
   }
 }

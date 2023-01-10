@@ -70,6 +70,20 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
+    The directory of terminals and controllers for projects.
+  */
+  IJBDirectory private immutable directory;
+
+  IJBController private immutable controller;
+
+  /**
+    @notice
+    SliceCore instance
+  */
+  ISliceCore private immutable sliceCore;
+
+  /**
+    @notice
     The ID of the Blunt Finance project.
   */
   uint256 public immutable bluntProjectId;
@@ -88,20 +102,6 @@ contract BluntDelegate is IBluntDelegate {
   uint256 public immutable MIN_K;
   uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
   uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
-
-  /**
-    @notice
-    The directory of terminals and controllers for projects.
-  */
-  IJBDirectory private immutable directory;
-
-  IJBController private immutable controller;
-
-  /**
-    @notice
-    SliceCore instance
-  */
-  ISliceCore private immutable sliceCore;
 
   /**
     @notice
@@ -242,10 +242,10 @@ contract BluntDelegate is IBluntDelegate {
     if (_deployBluntDelegateData.projectOwner.code.length != 0)
       _doSafeTransferAcceptanceCheckERC721(_deployBluntDelegateData.projectOwner);
 
-    MAX_K = uint16(_deployBluntDelegateDeployerData.maxK);
-    MIN_K = uint16(_deployBluntDelegateDeployerData.minK);
-    UPPER_FUNDRAISE_BOUNDARY_USD = uint56(_deployBluntDelegateDeployerData.upperFundraiseBoundary);
-    LOWER_FUNDRAISE_BOUNDARY_USD = uint56(_deployBluntDelegateDeployerData.lowerFundraiseBoundary);
+    MAX_K = _deployBluntDelegateDeployerData.maxK;
+    MIN_K = _deployBluntDelegateDeployerData.minK;
+    UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.upperFundraiseBoundary;
+    LOWER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.lowerFundraiseBoundary;
     bluntProjectId = _deployBluntDelegateDeployerData.bluntProjectId;
     projectId = _deployBluntDelegateDeployerData.projectId;
     ethAddress = _deployBluntDelegateDeployerData.ethAddress;
