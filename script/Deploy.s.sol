@@ -18,10 +18,17 @@ contract DeployScript is Script {
     bytes32 salt = keccak256(bytes(vm.envString('SALT')));
     uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
 
-    // GOERLI
+    // MAINNET PARAMS
+    // IJBController jbController = IJBController(___);
+    // IJBOperatorStore jbOperatorStore = IJBOperatorStore(___);
+    // uint256 bluntProjectId = ___;
+    // address ethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    // address usdcAddress = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    // GOERLI PARAMS
     IJBController jbController = IJBController(0x7Cb86D43B665196BC719b6974D320bf674AFb395);
     IJBOperatorStore jbOperatorStore = IJBOperatorStore(0x99dB6b517683237dE9C494bbd17861f3608F3585);
-    uint256 bluntProjectId; // TODO: define this before deploying
+    uint256 bluntProjectId = 314;
     address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
     address usdcAddress = 0x2f3A40A3db8a7e3D09B0adfEfbCe4f6F81927557;
 
