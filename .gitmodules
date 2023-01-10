@@ -25,3 +25,7 @@
 [submodule "lib/juice-contracts-v3"]
 	path = lib/juice-contracts-v3
 	url = https://github.com/jbx-protocol/juice-contracts-v3
+[submodule "lib/prb-math"]
+	path = lib/prb-math
+	url = https://github.com/paulrberg/prb-math
+	branch = v2.5.0
