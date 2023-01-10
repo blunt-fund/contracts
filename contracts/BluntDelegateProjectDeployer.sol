@@ -46,17 +46,30 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   */
   IJBController public immutable override controller;
 
+  //*********************************************************************//
+  // -------------------- public mutable storage ----------------------- //
+  //*********************************************************************//
+
+  /**
+    @notice
+    Parameters used to calculate Blunt Finance round fees
+  */
+  uint16 public maxK;
+  uint16 public minK;
+  uint56 public upperFundraiseBoundary;
+  uint56 public lowerFundraiseBoundary;
+
   /** 
     @notice
     The contract responsible for deploying the delegate.
   */
-  IBluntDelegateDeployer public immutable override delegateDeployer;
+  IBluntDelegateDeployer public override delegateDeployer;
 
   /** 
     @notice
     The contract responsible for deploying the delegate as immutable clones.
   */
-  IBluntDelegateCloner public immutable override delegateCloner;
+  IBluntDelegateCloner public override delegateCloner;
 
   //*********************************************************************//
   // -------------------------- constructor ---------------------------- //
@@ -101,29 +114,26 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     // Get the project ID, optimistically knowing it will be one greater than the current count.
     projectId = controller.projects().count() + 1;
 
+    DeployBluntDelegateDeployerData memory _deployerData = DeployBluntDelegateDeployerData(
+      controller,
+      bluntProjectId,
+      projectId,
+      _launchProjectData.data.duration,
+      ethAddress,
+      usdcAddress,
+      maxK,
+      minK,
+      upperFundraiseBoundary,
+      lowerFundraiseBoundary
+    );
+
     address _delegateAddress;
     if (_clone) {
       // Deploy the data source contract as immutable clone
-      _delegateAddress = delegateCloner.deployDelegateFor(
-        controller,
-        bluntProjectId,
-        projectId,
-        _launchProjectData.data.duration,
-        ethAddress,
-        usdcAddress,
-        _deployBluntDelegateData
-      );
+      _delegateAddress = delegateCloner.deployDelegateFor(_deployerData, _deployBluntDelegateData);
     } else {
       // Deploy the data source contract.
-      _delegateAddress = delegateDeployer.deployDelegateFor(
-        controller,
-        bluntProjectId,
-        projectId,
-        _launchProjectData.data.duration,
-        ethAddress,
-        usdcAddress,
-        _deployBluntDelegateData
-      );
+      _delegateAddress = delegateDeployer.deployDelegateFor(_deployerData, _deployBluntDelegateData);
     }
 
     _launchProjectData = _formatLaunchData(_launchProjectData, _delegateAddress);

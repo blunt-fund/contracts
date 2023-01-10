@@ -241,36 +241,26 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
-    @param _controller JBController address
-    @param _bluntProjectId The ID of the Blunt Finance project 
-    @param _projectId The ID of the project 
-    @param _duration Blunt round duration
-    @param _ethAddress WETH address on Uniswap
-    @param _usdcAddress USDC address on Uniswap
-    @param _deployBluntDelegateData Data required for deployment
+    @param _deployBluntDelegateDeployerData Deployment data sent by deployer contract
+    @param _deployBluntDelegateData Deployment data sent by user
   */
   constructor(
-    IJBController _controller,
-    uint256 _bluntProjectId,
-    uint256 _projectId,
-    uint256 _duration,
-    address _ethAddress,
-    address _usdcAddress,
+    DeployBluntDelegateDeployerData memory _deployBluntDelegateDeployerData,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) {
     if (_deployBluntDelegateData.projectOwner.code.length != 0)
       _doSafeTransferAcceptanceCheckERC721(_deployBluntDelegateData.projectOwner);
 
-    MAX_K = _deployBluntDelegateData.maxK;
-    MIN_K = _deployBluntDelegateData.minK;
-    UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateData.upperFundraiseBoundary;
-    LOWER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateData.lowerFundraiseBoundary;
+    MAX_K = uint16(_deployBluntDelegateDeployerData.maxK);
+    MIN_K = uint16(_deployBluntDelegateDeployerData.minK);
+    UPPER_FUNDRAISE_BOUNDARY_USD = uint56(_deployBluntDelegateDeployerData.upperFundraiseBoundary);
+    LOWER_FUNDRAISE_BOUNDARY_USD = uint56(_deployBluntDelegateDeployerData.lowerFundraiseBoundary);
 
-    bluntProjectId = _bluntProjectId;
-    projectId = _projectId;
-    ethAddress = _ethAddress;
-    usdcAddress = _usdcAddress;
-    controller = _controller;
+    bluntProjectId = _deployBluntDelegateDeployerData.bluntProjectId;
+    projectId = _deployBluntDelegateDeployerData.projectId;
+    ethAddress = _deployBluntDelegateDeployerData.ethAddress;
+    usdcAddress = _deployBluntDelegateDeployerData.usdcAddress;
+    controller = _deployBluntDelegateDeployerData.controller;
     directory = _deployBluntDelegateData.directory;
     fundingCycleStore = _deployBluntDelegateData.fundingCycleStore;
     sliceCore = _deployBluntDelegateData.sliceCore;
@@ -296,7 +286,7 @@ contract BluntDelegate is IBluntDelegate {
       tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
     /// Set `isQueued` if FC duration is zero
-    if (_duration == 0) isQueued = true;
+    if (_deployBluntDelegateDeployerData.duration == 0) isQueued = true;
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
@@ -310,13 +300,21 @@ contract BluntDelegate is IBluntDelegate {
     uint256 currentFundingCycle;
     unchecked {
       currentFundingCycle =
-        _deployBluntDelegateData.fundingCycleStore.currentOf(_projectId).number +
+        _deployBluntDelegateData
+          .fundingCycleStore
+          .currentOf(_deployBluntDelegateDeployerData.projectId)
+          .number +
         1;
     }
     /// Store current funding cycle
     fundingCycleRound = currentFundingCycle;
 
-    emit RoundCreated(_deployBluntDelegateData, _projectId, _duration, currentFundingCycle);
+    emit RoundCreated(
+      _deployBluntDelegateData,
+      _deployBluntDelegateDeployerData.projectId,
+      _deployBluntDelegateDeployerData.duration,
+      currentFundingCycle
+    );
   }
 
   //*********************************************************************//
