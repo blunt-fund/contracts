@@ -27,8 +27,6 @@ interface IBluntDelegate is
 
   function transferToken(IERC20 token) external;
 
-  function queueNextPhase() external;
-
   function closeRound() external;
 
   function isTargetReached() external view returns (bool);
