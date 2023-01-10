@@ -29,8 +29,7 @@ contract BluntDelegateTest is BluntSetup {
   event RoundCreated(
     DeployBluntDelegateData deployBluntDelegateData,
     uint256 projectId,
-    uint256 duration,
-    uint256 currentFundingCycle
+    uint256 duration
   );
   event ClaimedSlices(address beneficiary, uint256 amount);
   event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
@@ -119,7 +118,6 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.releaseTimelock, _releaseTimelock);
     assertEq(roundInfo.transferTimelock, _transferTimelock);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
-    assertEq(roundInfo.fundingCycleRound, 1);
     assertEq(roundInfo.afterRoundReservedRate, _afterRoundReservedRate);
     assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, false);
     assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
@@ -1033,7 +1031,7 @@ contract BluntDelegateTest is BluntSetup {
     ) = _formatDeployData();
 
     hevm.expectEmit(false, false, false, true);
-    emit RoundCreated(deployBluntDelegateData, 3, launchProjectData.data.duration, 1);
+    emit RoundCreated(deployBluntDelegateData, 3, launchProjectData.data.duration);
     bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
   }
 
