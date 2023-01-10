@@ -11,6 +11,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   //*********************************************************************//
   // ------------------------- custom errors --------------------------- //
   //*********************************************************************//
+
   error EXCEEDED_MAX_FEE();
   error INVALID_INPUTS();
   error INVALID_TOKEN_ISSUANCE();
@@ -143,7 +144,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
       // Deploy the data source contract as immutable clone
       _delegateAddress = delegateCloner.deployDelegateFor(_deployerData, _deployBluntDelegateData);
     } else {
-      // Deploy the data source contract.
+      // Deploy the data source contract as standard deployment.
       _delegateAddress = delegateDeployer.deployDelegateFor(
         _deployerData,
         _deployBluntDelegateData
@@ -253,7 +254,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     // Enforce empty ballot
     launchData.data.ballot = IJBFundingCycleBallot(address(0));
 
-    // Duration param is passed to the delegate contract to calculate the end time of the round,
+    // Duration param is passed to the delegate contract to calculate the round deadline,
     // and then set to 0 prior to launch project to avoid the need to queue a FC.
     launchData.data.duration = 0;
 
