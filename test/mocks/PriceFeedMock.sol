@@ -3,6 +3,7 @@ pragma solidity ^0.8.16;
 
 contract PriceFeedMock {
   // Mock 1200 USD per ETH for usdc-eth conversion
+  // if (baseAmount == USD) {XE6} else if (baseAmount == ETH) {XE18}
   function getQuote(
     uint128 usdcBaseAmountXE6,
     address baseCurrency,
