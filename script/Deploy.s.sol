@@ -21,6 +21,7 @@ contract DeployScript is Script {
     // GOERLI
     IJBController jbController = IJBController(0x7Cb86D43B665196BC719b6974D320bf674AFb395);
     IJBOperatorStore jbOperatorStore = IJBOperatorStore(0x99dB6b517683237dE9C494bbd17861f3608F3585);
+    uint256 bluntProjectId; // TODO:
     address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
     address usdcAddress = 0x2f3A40A3db8a7e3D09B0adfEfbCe4f6F81927557;
 
@@ -39,8 +40,13 @@ contract DeployScript is Script {
             delegateCloner,
             jbController,
             jbOperatorStore,
+            bluntProjectId,
             ethAddress,
-            usdcAddress
+            usdcAddress,
+            350, // maxK, 3.5%
+            150, // minK, 1.5%
+            2e13, // upperFundraiseBoundary, $20M
+            1e11 // lowerFundraiseBoundary, $100k
           )
         )
       )

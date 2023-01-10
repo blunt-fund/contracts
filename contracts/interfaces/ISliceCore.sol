@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import './ISlicer.sol';
 import './ISlicerManager.sol';
-import '@openzeppelin/interfaces/IERC1155.sol';
-import '@openzeppelin/interfaces/IERC2981.sol';
+import '@openzeppelin/contracts/interfaces/IERC1155.sol';
+import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 
 interface ISliceCore is IERC1155, IERC2981 {
   function slicerManager() external view returns (ISlicerManager slicerManagerAddress);

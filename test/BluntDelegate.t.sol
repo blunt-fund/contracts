@@ -763,7 +763,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegateAlt_.closeRound();
 
     uint256 bluntFee = _calculateFee(totalContributions);
-    assertEq(bluntFee, (totalContributions * 500) / 10000);
+    assertEq(bluntFee, (totalContributions * _maxK) / 10000);
   }
 
   function testCalculateFee_midBoundary() public {
@@ -813,7 +813,7 @@ contract BluntDelegateTest is BluntSetup {
     bluntDelegateAlt_.closeRound();
 
     uint256 bluntFee = _calculateFee(totalContributions);
-    assertEq(bluntFee, (totalContributions * 150) / 10000);
+    assertEq(bluntFee, (totalContributions * _minK) / 10000);
   }
 
   function testCalculateFee_linearDecrement(uint256 amount) public {
