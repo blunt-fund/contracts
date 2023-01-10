@@ -21,4 +21,16 @@ interface IBluntDelegateProjectDeployer {
     JBLaunchProjectData memory _launchProjectData,
     bool _clone
   ) external returns (uint256 projectId);
+
+  function _setDelegates(
+    IBluntDelegateDeployer newDelegateDeployer_,
+    IBluntDelegateCloner newDelegateCloner_
+  ) external;
+
+  function _setFees(
+    uint16 maxK_,
+    uint16 minK_,
+    uint56 upperFundraiseBoundary_,
+    uint56 lowerFundraiseBoundary_
+  ) external;
 }
