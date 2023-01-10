@@ -16,7 +16,7 @@ struct RoundInfo {
   string tokenName;
   string tokenSymbol;
   bool isRoundClosed;
-  bool isQueued;
+  uint256 deadline;
   bool isTargetUsd;
   bool isHardcapUsd;
   bool isSlicerToBeCreated;

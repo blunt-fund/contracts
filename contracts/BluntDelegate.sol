@@ -17,6 +17,8 @@ contract BluntDelegate is IBluntDelegate {
   error CAP_REACHED();
   error SLICER_NOT_YET_CREATED();
   error VALUE_NOT_EXACT();
+  error ROUND_ENDED();
+  error ROUND_NOT_ENDED();
   error ROUND_CLOSED();
   error ROUND_NOT_CLOSED();
   error NOT_PROJECT_OWNER();
@@ -36,7 +38,6 @@ contract BluntDelegate is IBluntDelegate {
   );
   event ClaimedSlices(address beneficiary, uint256 amount);
   event ClaimedSlicesBatch(address[] beneficiaries, uint256[] amounts);
-  event Queued();
   event TokenMetadataSet(string tokenName_, string tokenSymbol_);
   event RoundClosed();
   event SlicerCreated(uint256 slicerId_, address slicerAddress);
@@ -61,41 +62,13 @@ contract BluntDelegate is IBluntDelegate {
     @notice 
     The ETH token address in Juicebox
   */
-  address public constant ETH = address(0x000000000000000000000000000000000000EEEe);
+  address private constant ETH = address(0x000000000000000000000000000000000000EEEe);
 
   /**
     @notice
     Price feed instance
   */
-  IPriceFeed public constant priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
-
-  /**
-    @notice
-    The directory of terminals and controllers for projects.
-  */
-  IJBDirectory public immutable directory;
-
-  IJBFundingCycleStore public immutable fundingCycleStore;
-
-  IJBController public immutable controller;
-
-  /**
-    @notice
-    SliceCore instance
-  */
-  ISliceCore public immutable sliceCore;
-
-  /**
-    @notice
-    WETH address on Uniswap
-  */
-  address public immutable ethAddress;
-
-  /**
-    @notice
-    USDC address on Uniswap
-  */
-  address public immutable usdcAddress;
+  IPriceFeed private constant priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
 
   /**
     @notice
@@ -108,6 +81,43 @@ contract BluntDelegate is IBluntDelegate {
     The ID of the project.
   */
   uint256 public immutable projectId;
+
+  /**
+    @notice
+    Constants used to calculate Blunt Finance fee
+  */
+  uint256 public immutable MAX_K;
+  uint256 public immutable MIN_K;
+  uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
+  uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
+
+  /**
+    @notice
+    The directory of terminals and controllers for projects.
+  */
+  IJBDirectory private immutable directory;
+
+  IJBFundingCycleStore private immutable fundingCycleStore;
+
+  IJBController private immutable controller;
+
+  /**
+    @notice
+    SliceCore instance
+  */
+  ISliceCore private immutable sliceCore;
+
+  /**
+    @notice
+    WETH address on Uniswap
+  */
+  address private immutable ethAddress;
+
+  /**
+    @notice
+    USDC address on Uniswap
+  */
+  address private immutable usdcAddress;
 
   /** 
     @notice
@@ -155,6 +165,12 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
+    Deadline of the round
+  */
+  uint256 private immutable deadline;
+
+  /**
+    @notice
     True if a target is expressed in USD
   */
   bool private immutable isTargetUsd;
@@ -170,15 +186,6 @@ contract BluntDelegate is IBluntDelegate {
     True if a slicer is created when round closes successfully
   */
   bool private immutable isSlicerToBeCreated;
-
-  /**
-    @notice
-    Constants used to calculate Blunt Finance fee
-  */
-  uint256 public immutable MAX_K;
-  uint256 public immutable MIN_K;
-  uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
-  uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
 
   //*********************************************************************//
   // ------------------------- mutable storage ------------------------- //
@@ -205,12 +212,6 @@ contract BluntDelegate is IBluntDelegate {
     True if the round has been closed 
   */
   bool private isRoundClosed;
-
-  /**
-    @notice
-    True if the round has been queued
-  */
-  bool private isQueued;
 
   /** 
     @notice
@@ -285,8 +286,10 @@ contract BluntDelegate is IBluntDelegate {
     if (bytes(_deployBluntDelegateData.tokenSymbol).length != 0)
       tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
-    /// Set `isQueued` if FC duration is zero
-    if (_deployBluntDelegateDeployerData.duration == 0) isQueued = true;
+    /// Set deadline based on round duration
+    deadline = _deployBluntDelegateDeployerData.duration == 0
+      ? 0
+      : block.timestamp + _deployBluntDelegateDeployerData.duration;
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
@@ -336,14 +339,15 @@ contract BluntDelegate is IBluntDelegate {
     /// Require that
     /// - The caller is a terminal of the project
     /// - The call is being made on behalf of an interaction with the correct project
-    /// - The funding cycle related to the round hasn't ended
     /// - The blunt round hasn't been closed
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
       _data.projectId != projectId ||
-      fundingCycleStore.currentOf(projectId).number != fundingCycleRound ||
       isRoundClosed
     ) revert INVALID_PAYMENT_EVENT();
+
+    /// Require that the funding cycle related to the round hasn't ended
+    if (deadline != 0 && block.timestamp > deadline) revert ROUND_ENDED();
 
     /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
     if (_data.amount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
@@ -390,11 +394,11 @@ contract BluntDelegate is IBluntDelegate {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    /// Revert if round has been closed successfully
-    if (isRoundClosed && isTargetReached()) revert ROUND_CLOSED();
-
-    /// If round is open, execute logic to keep track of slices to issue
-    if (!isRoundClosed) {
+    if (isRoundClosed) {
+      /// Revert if round has been closed successfully
+      if (isTargetReached()) revert ROUND_CLOSED();
+    } else {
+      /// If round is open, execute logic to keep track of slices to issue
       /// Ensure contributed amount is a multiple of `TOKENS_PER_SLICE`
       if (_data.reclaimedAmount.value % TOKENS_PER_SLICE != 0) revert VALUE_NOT_EXACT();
 
@@ -472,39 +476,6 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice 
-    Configure next FC to have 0 duration in order for `closeRound` to have immediate effect
-  */
-  function queueNextPhase() external override {
-    if (isQueued) revert ALREADY_QUEUED();
-    isQueued = true;
-
-    /// Get current FC data and metadata
-    (, JBFundingCycleMetadata memory metadata) = controller.currentFundingCycleOf(projectId);
-
-    /// Set JBFundingCycleData with duration 0 and null params
-    JBFundingCycleData memory data = JBFundingCycleData({
-      duration: 0,
-      weight: 1,
-      discountRate: 0,
-      ballot: IJBFundingCycleBallot(address(0))
-    });
-
-    /// Configure next FC
-    controller.reconfigureFundingCyclesOf(
-      projectId,
-      data,
-      metadata,
-      0,
-      new JBGroupedSplits[](0),
-      new JBFundAccessConstraints[](0),
-      ''
-    );
-
-    emit Queued();
-  }
-
-  /**
-    @notice 
     Update token metadata related to the project
 
     @dev
@@ -557,6 +528,8 @@ contract BluntDelegate is IBluntDelegate {
     isRoundClosed = true;
 
     if (isTargetReached()) {
+      if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
+
       address currency;
       string memory tokenName_ = tokenName;
       string memory tokenSymbol_ = tokenSymbol;
@@ -750,7 +723,7 @@ contract BluntDelegate is IBluntDelegate {
       tokenName,
       tokenSymbol,
       isRoundClosed,
-      isQueued,
+      deadline,
       isTargetUsd,
       isHardcapUsd,
       isSlicerToBeCreated,
