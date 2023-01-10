@@ -391,6 +391,87 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice 
+    Close blunt round if target has been reached:
+    - Pay BF fee, 
+    - Mint slices to blunt delegate, 
+    - Reconfigure next FC,
+    - Transfer project NFT to projectOwner.
+    If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
+
+    @dev 
+    Can only be called once by the appointed project owner.
+  */
+  function closeRound() external override {
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    if (isRoundClosed) revert ROUND_CLOSED();
+    isRoundClosed = true;
+
+    if (isTargetReached()) {
+      // Prevent successful rounds to be closed before the deadline
+      if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
+
+      address currency;
+      string memory tokenName_ = tokenName;
+      string memory tokenSymbol_ = tokenSymbol;
+      /// If token name and symbol have been set
+      if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
+        /// Issue ERC20 project token and get contract address
+        currency = address(controller.tokenStore().issueFor(projectId, tokenName_, tokenSymbol_));
+      }
+
+      if (isSlicerToBeCreated) {
+        /// Revert if currency hasn't been issued
+        if (currency == address(0)) revert TOKEN_NOT_SET();
+
+        /// Create slicer and mint slices to bluntDelegate
+        address slicerAddress = _mintSlicesToDelegate(currency);
+
+        if (afterRoundSplits.length != 0 && afterRoundSplits[0].beneficiary == address(0)) {
+          /// Update split with slicer address
+          afterRoundSplits[0].beneficiary = payable(slicerAddress);
+          afterRoundSplits[0].preferClaimed = true;
+        }
+      }
+
+      (
+        address jbEthTerminalAddress,
+        uint256 bluntFee,
+        JBFundingCycleData memory data,
+        JBFundingCycleMetadata memory metadata,
+        JBGroupedSplits[] memory splits,
+        JBFundAccessConstraints[] memory fundAccessConstraints
+      ) = _formatReconfigData();
+
+      /// Reconfigure Funding Cycle
+      controller.reconfigureFundingCyclesOf(
+        projectId,
+        data,
+        metadata,
+        0,
+        splits,
+        fundAccessConstraints,
+        ''
+      );
+
+      // Distribute payout fee to Blunt Finance
+      IJBPayoutTerminal(jbEthTerminalAddress).distributePayoutsOf({
+        _projectId: projectId,
+        _amount: bluntFee,
+        _currency: 1,
+        _token: ETH,
+        _minReturnedTokens: 0,
+        _memo: ''
+      });
+
+      /// Transfer project ownership to projectOwner
+      directory.projects().safeTransferFrom(address(this), projectOwner, projectId);
+    }
+
+    emit RoundClosed();
+  }
+
+  /**
+    @notice 
     Transfer any unclaimed slices to `beneficiaries` in batch.
 
     @dev 
@@ -483,121 +564,6 @@ contract BluntDelegate is IBluntDelegate {
     token.transfer(to, token.balanceOf(address(this)));
   }
 
-  /**
-    @notice 
-    Close blunt round if target has been reached:
-    - Pay BF fee, 
-    - Mint slices to blunt delegate, 
-    - Reconfigure next FC,
-    - Transfer project NFT to projectOwner.
-    If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
-
-    @dev 
-    Can only be called once by the appointed project owner.
-  */
-  function closeRound() external override {
-    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
-    if (isRoundClosed) revert ROUND_CLOSED();
-    isRoundClosed = true;
-
-    if (isTargetReached()) {
-      if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
-
-      address currency;
-      string memory tokenName_ = tokenName;
-      string memory tokenSymbol_ = tokenSymbol;
-      /// If token name and symbol have been set
-      if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
-        /// Issue ERC20 project token and get contract address
-        currency = address(controller.tokenStore().issueFor(projectId, tokenName_, tokenSymbol_));
-      }
-
-      if (isSlicerToBeCreated) {
-        /// Revert if currency hasn't been issued
-        if (currency == address(0)) revert TOKEN_NOT_SET();
-
-        /// Create slicer and mint slices to bluntDelegate
-        address slicerAddress = _mintSlicesToDelegate(currency);
-
-        if (afterRoundSplits.length != 0 && afterRoundSplits[0].beneficiary == address(0)) {
-          /// Update split with slicer address
-          afterRoundSplits[0].beneficiary = payable(slicerAddress);
-          afterRoundSplits[0].preferClaimed = true;
-        }
-      }
-
-      (
-        address jbEthTerminalAddress,
-        uint256 bluntFee,
-        JBFundingCycleData memory data,
-        JBFundingCycleMetadata memory metadata,
-        JBGroupedSplits[] memory splits,
-        JBFundAccessConstraints[] memory fundAccessConstraints
-      ) = _formatReconfigData();
-
-      /// Reconfigure Funding Cycle
-      controller.reconfigureFundingCyclesOf(
-        projectId,
-        data,
-        metadata,
-        0,
-        splits,
-        fundAccessConstraints,
-        ''
-      );
-
-      // Distribute payout fee to Blunt Finance
-      IJBPayoutTerminal(jbEthTerminalAddress).distributePayoutsOf({
-        _projectId: projectId,
-        _amount: bluntFee,
-        _currency: 1,
-        _token: ETH,
-        _minReturnedTokens: 0,
-        _memo: ''
-      });
-
-      /// Transfer project ownership to projectOwner
-      directory.projects().safeTransferFrom(address(this), projectOwner, projectId);
-    }
-
-    emit RoundClosed();
-  }
-
-  /**
-    @notice 
-    Creates project's token, slicer and issues `slicesToMint` to this contract.
-  */
-  function _mintSlicesToDelegate(address currency) private returns (address slicerAddress) {
-    /// Calculate `slicesToMint`
-    /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
-    uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
-
-    /// Add references for sliceParams
-    Payee[] memory payees = new Payee[](1);
-    payees[0] = Payee(address(this), slicesToMint, true);
-    address[] memory acceptedCurrencies = new address[](1);
-    acceptedCurrencies[0] = currency;
-
-    /// Create slicer and mint all slices to this address
-    uint256 slicerId_;
-    (slicerId_, slicerAddress) = sliceCore.slice(
-      SliceParams(
-        payees,
-        slicesToMint, /// 100% superowner slices
-        acceptedCurrencies,
-        releaseTimelock,
-        uint40(transferTimelock),
-        address(0),
-        0,
-        0
-      )
-    );
-
-    slicerId = uint144(slicerId_);
-
-    emit SlicerCreated(slicerId_, slicerAddress);
-  }
-
   //*********************************************************************//
   // ------------------------- external views -------------------------- //
   //*********************************************************************//
@@ -665,21 +631,6 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
-    Indicates if this contract adheres to the specified interface.
-
-    @dev
-    See {IERC165-supportsInterface}.
-
-    @param _interfaceId The ID of the interface to check for adherance to.
-  */
-  function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
-    return
-      _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
-      _interfaceId == type(IJBPayDelegate).interfaceId;
-  }
-
-  /**
-    @notice
     Returns info related to round.
   */
   function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
@@ -720,6 +671,41 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
   // ----------------------- private functions ------------------------- //
   //*********************************************************************//
+
+  /**
+    @notice 
+    Creates project's token, slicer and issues `slicesToMint` to this contract.
+  */
+  function _mintSlicesToDelegate(address currency) private returns (address slicerAddress) {
+    /// Calculate `slicesToMint`
+    /// @dev Cannot overflow uint32 as totalContributions <= MAX_CONTRIBUTION
+    uint32 slicesToMint = uint32(totalContributions / TOKENS_PER_SLICE);
+
+    /// Add references for sliceParams
+    Payee[] memory payees = new Payee[](1);
+    payees[0] = Payee(address(this), slicesToMint, true);
+    address[] memory acceptedCurrencies = new address[](1);
+    acceptedCurrencies[0] = currency;
+
+    /// Create slicer and mint all slices to this address
+    uint256 slicerId_;
+    (slicerId_, slicerAddress) = sliceCore.slice(
+      SliceParams(
+        payees,
+        slicesToMint, /// 100% superowner slices
+        acceptedCurrencies,
+        releaseTimelock,
+        uint40(transferTimelock),
+        address(0),
+        0,
+        0
+      )
+    );
+
+    slicerId = uint144(slicerId_);
+
+    emit SlicerCreated(slicerId_, slicerAddress);
+  }
 
   /**
     @notice
@@ -885,7 +871,7 @@ contract BluntDelegate is IBluntDelegate {
   }
 
   //*********************************************************************//
-  // ------------------------------ hooks ------------------------------ //
+  // ------------------------ hooks and others ------------------------- //
   //*********************************************************************//
 
   /**
@@ -926,5 +912,20 @@ contract BluntDelegate is IBluntDelegate {
     bytes calldata
   ) public pure override returns (bytes4) {
     return this.onERC721Received.selector;
+  }
+
+  /**
+    @notice
+    Indicates if this contract adheres to the specified interface.
+
+    @dev
+    See {IERC165-supportsInterface}.
+
+    @param _interfaceId The ID of the interface to check for adherance to.
+  */
+  function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
+    return
+      _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
+      _interfaceId == type(IJBPayDelegate).interfaceId;
   }
 }
