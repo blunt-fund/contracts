@@ -30,7 +30,7 @@ contract DeployScript is Script {
     IJBOperatorStore jbOperatorStore = IJBOperatorStore(0x99dB6b517683237dE9C494bbd17861f3608F3585);
     uint256 bluntProjectId = 314;
     address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
-    address usdcAddress = 0x2f3A40A3db8a7e3D09B0adfEfbCe4f6F81927557;
+    address usdcAddress = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
 
     vm.startBroadcast(deployerPrivateKey);
 
