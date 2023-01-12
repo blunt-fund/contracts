@@ -288,13 +288,16 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    if (!isRoundClosed) {
+    unchecked {
+      /// Decrease contributions based on amount redeemed
       /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
       /// contributions can be inside unchecked as token transfers are disabled during round
-      unchecked {
-        /// Update totalContributions and contributions with amount redeemed
+      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+
+      // Only if round is open
+      if (!isRoundClosed) {
+        /// Decrease totalContributions by amount redeemed
         totalContributions -= uint248(_data.reclaimedAmount.value);
-        contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
       }
     }
   }

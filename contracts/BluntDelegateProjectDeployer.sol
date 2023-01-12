@@ -76,6 +76,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   //*********************************************************************//
 
   constructor(
+    address deployer,
     IBluntDelegateDeployer _delegateDeployer,
     IBluntDelegateCloner _delegateCloner,
     IJBController _controller,
@@ -88,6 +89,9 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     uint56 _upperFundraiseBoundary,
     uint56 _lowerFundraiseBoundary
   ) JBOperatable(_operatorStore) {
+    // Override ownable's default owner due to CREATE3 deployment
+    _transferOwnership(deployer);
+    
     delegateDeployer = _delegateDeployer;
     delegateCloner = _delegateCloner;
     controller = _controller;

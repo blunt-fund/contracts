@@ -20,6 +20,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     delegateCloner = new BluntDelegateCloner();
 
     bluntDeployer = new BluntDelegateProjectDeployer(
+      address(this),
       delegateDeployer,
       delegateCloner,
       _jbController,

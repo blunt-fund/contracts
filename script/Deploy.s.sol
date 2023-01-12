@@ -15,27 +15,43 @@ import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBOperatorStore.s
 contract DeployScript is Script {
   function run() public returns (BluntDelegateProjectDeployer bluntDeployer) {
     CREATE3Factory create3Factory = CREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
-    bytes32 salt = keccak256(bytes(vm.envString('SALT')));
+    bytes32 saltProjectDeployer = keccak256(bytes(vm.envString('SALT_PROJECT_DEPLOYER')));
+    bytes32 saltDeployer = keccak256(bytes(vm.envString('SALT_DEPLOYER')));
+    bytes32 saltCloner = keccak256(bytes(vm.envString('SALT_CLONER')));
     uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
+    address deployerAddress = vm.addr(deployerPrivateKey);
 
-    // GOERLI
+    // MAINNET PARAMS
+    // IJBController jbController = IJBController(___);
+    // IJBOperatorStore jbOperatorStore = IJBOperatorStore(___);
+    // uint256 bluntProjectId = ___;
+    // address ethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    // address usdcAddress = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    // GOERLI PARAMS
     IJBController jbController = IJBController(0x7Cb86D43B665196BC719b6974D320bf674AFb395);
     IJBOperatorStore jbOperatorStore = IJBOperatorStore(0x99dB6b517683237dE9C494bbd17861f3608F3585);
-    uint256 bluntProjectId; // TODO: define this before deploying
+    uint256 bluntProjectId = 314;
     address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
-    address usdcAddress = 0x2f3A40A3db8a7e3D09B0adfEfbCe4f6F81927557;
+    address usdcAddress = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
 
     vm.startBroadcast(deployerPrivateKey);
 
-    IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
-    IBluntDelegateCloner delegateCloner = new BluntDelegateCloner();
+    BluntDelegateDeployer delegateDeployer = BluntDelegateDeployer(
+      create3Factory.deploy(saltDeployer, bytes.concat(type(BluntDelegateDeployer).creationCode))
+    );
+
+    BluntDelegateCloner delegateCloner = BluntDelegateCloner(
+      create3Factory.deploy(saltCloner, bytes.concat(type(BluntDelegateCloner).creationCode))
+    );
 
     bluntDeployer = BluntDelegateProjectDeployer(
       create3Factory.deploy(
-        salt,
+        saltProjectDeployer,
         bytes.concat(
           type(BluntDelegateProjectDeployer).creationCode,
           abi.encode(
+            deployerAddress,
             delegateDeployer,
             delegateCloner,
             jbController,

@@ -1,8 +1,8 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 solmate/=lib/solmate/src/
-create3-factory=lib/create3-factory/src/
-@jbx-protocol/juice-contracts-v3=lib/juice-contracts-v3
-@prb/math=lib/prb-math/
-@openzeppelin/contracts=lib/openzeppelin-contracts/contracts
-@openzeppelin-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts
+create3-factory/=lib/create3-factory/src/
+@jbx-protocol/juice-contracts-v3/=lib/juice-contracts-v3/
+@prb/math/=lib/prb-math/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
