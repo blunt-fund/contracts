@@ -292,7 +292,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(mintedTokens, 1e15);
     assertEq(reclaimAmount, 1e17);
     assertEq(uint256(bluntDelegate.getRoundInfo().totalContributions), _target);
-    assertEq(bluntDelegate.contributions(user), _target);
+    assertEq(bluntDelegate.contributions(user), _target - reclaimAmount);
   }
 
   function testDidRedeemWithoutDeadline() public {

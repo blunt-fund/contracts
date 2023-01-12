@@ -270,13 +270,16 @@ contract BluntDelegate is IBluntDelegate {
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    if (!isRoundClosed) {
+    unchecked {
+      /// Decrease contributions based on amount redeemed
       /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
       /// contributions can be inside unchecked as token transfers are disabled during round
-      unchecked {
-        /// Update totalContributions and contributions with amount redeemed
+      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+
+      // Only if round is open
+      if (!isRoundClosed) {
+        /// Decrease totalContributions by amount redeemed
         totalContributions -= uint248(_data.reclaimedAmount.value);
-        contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
       }
     }
   }
@@ -570,19 +573,19 @@ contract BluntDelegate is IBluntDelegate {
   //*********************************************************************//
 
   /**
-    * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-    * by `operator` from `from`, this function is called.
-    *
-    * It must return its Solidity selector to confirm the token transfer.
-    * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-    *
-    * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
-    */
+   * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+   * by `operator` from `from`, this function is called.
+   *
+   * It must return its Solidity selector to confirm the token transfer.
+   * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
+   *
+   * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+   */
   function onERC721Received(
-      address,
-      address,
-      uint256,
-      bytes calldata
+    address,
+    address,
+    uint256,
+    bytes calldata
   ) external pure override returns (bytes4) {
     return this.onERC721Received.selector;
   }
