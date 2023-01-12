@@ -1,6 +1,7 @@
 [profile.default]
 optimizer_runs = 10000
 src = 'contracts'
+fs_permissions = [{ access = "read", path = "./deployment/"}]
 
 [rpc_endpoints]
 goerli = "${RPC_URL_GOERLI}"
