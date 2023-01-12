@@ -15,8 +15,11 @@ import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBOperatorStore.s
 contract DeployScript is Script {
   function run() public returns (BluntDelegateProjectDeployer bluntDeployer) {
     CREATE3Factory create3Factory = CREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
-    bytes32 salt = keccak256(bytes(vm.envString('SALT')));
+    bytes32 saltProjectDeployer = keccak256(bytes(vm.envString('SALT_PROJECT_DEPLOYER')));
+    bytes32 saltDeployer = keccak256(bytes(vm.envString('SALT_DEPLOYER')));
+    bytes32 saltCloner = keccak256(bytes(vm.envString('SALT_CLONER')));
     uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
+    address deployerAddress = vm.addr(deployerPrivateKey);
 
     // MAINNET PARAMS
     // IJBController jbController = IJBController(___);
@@ -34,15 +37,21 @@ contract DeployScript is Script {
 
     vm.startBroadcast(deployerPrivateKey);
 
-    IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
-    IBluntDelegateCloner delegateCloner = new BluntDelegateCloner();
+    BluntDelegateDeployer delegateDeployer = BluntDelegateDeployer(
+      create3Factory.deploy(saltDeployer, bytes.concat(type(BluntDelegateDeployer).creationCode))
+    );
+
+    BluntDelegateCloner delegateCloner = BluntDelegateCloner(
+      create3Factory.deploy(saltCloner, bytes.concat(type(BluntDelegateCloner).creationCode))
+    );
 
     bluntDeployer = BluntDelegateProjectDeployer(
       create3Factory.deploy(
-        salt,
+        saltProjectDeployer,
         bytes.concat(
           type(BluntDelegateProjectDeployer).creationCode,
           abi.encode(
+            deployerAddress,
             delegateDeployer,
             delegateCloner,
             jbController,
