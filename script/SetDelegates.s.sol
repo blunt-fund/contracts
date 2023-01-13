@@ -19,7 +19,7 @@ contract DeployScript is Script {
     uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
 
     string memory root = vm.projectRoot();
-    string memory path = string.concat(root, '/deployment/addresses.json');
+    string memory path = string.concat(root, '/deployments/addresses.json');
     string memory json = vm.readFile(path);
     IBluntDelegateProjectDeployer bluntDeployer = IBluntDelegateProjectDeployer(
       json.readAddress('BluntDelegateProjectDeployer')
