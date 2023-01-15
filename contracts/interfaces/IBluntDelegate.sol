@@ -18,5 +18,7 @@ interface IBluntDelegate is
 
   function closeRound() external;
 
+  function setDeadline(uint256 deadline_) external;
+
   function isTargetReached() external view returns (bool);
 }

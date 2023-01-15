@@ -32,6 +32,7 @@ contract BluntDelegateTest is BluntSetup {
     uint256 duration
   );
   event RoundClosed();
+  event DeadlineSet(uint256 deadline);
 
   //*********************************************************************//
   // ------------------------------ setup ------------------------------ //
@@ -415,6 +416,22 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(splits[1].lockedUntil, 0);
   }
 
+  function testSetDeadline() public {
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+
+    RoundInfo memory roundInfo = bluntDelegateAlt_.getRoundInfo();
+    assertEq(roundInfo.deadline, 0);
+
+    uint256 deadline_ = block.timestamp + 1e4;
+    hevm.prank(_bluntProjectOwner);
+    hevm.expectEmit(false, false, false, true);
+    emit DeadlineSet(deadline_);
+    bluntDelegateAlt_.setDeadline(deadline_);
+
+    RoundInfo memory newRoundInfo = bluntDelegateAlt_.getRoundInfo();
+    assertEq(newRoundInfo.deadline, deadline_);
+  }
+
   function testCloseRoundAboveTarget() public {
     uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
@@ -768,6 +785,53 @@ contract BluntDelegateTest is BluntSetup {
     hevm.prank(_bluntProjectOwner);
     hevm.expectRevert(bytes4(keccak256('ROUND_NOT_ENDED()')));
     bluntDelegate.closeRound();
+  }
+
+  function testRevert_setDeadline_notProjectOwner() public {
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    uint256 deadline_ = block.timestamp + 1e4;
+
+    hevm.expectRevert(bytes4(keccak256('NOT_PROJECT_OWNER()')));
+    bluntDelegateAlt_.setDeadline(deadline_);
+  }
+
+  function testRevert_setDeadline_roundClosed() public {
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    hevm.startPrank(_bluntProjectOwner);
+    uint256 deadline_ = block.timestamp + 1e4;
+    bluntDelegateAlt_.closeRound();
+
+    hevm.expectRevert(bytes4(keccak256('ROUND_CLOSED()')));
+    bluntDelegateAlt_.setDeadline(deadline_);
+
+    hevm.stopPrank();
+  }
+
+  function testRevert_setDeadline_deadlineSet() public {
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    hevm.startPrank(_bluntProjectOwner);
+    uint256 deadline_ = block.timestamp + 1e4;
+    bluntDelegateAlt_.setDeadline(deadline_);
+
+    hevm.expectRevert(bytes4(keccak256('DEADLINE_SET()')));
+    bluntDelegateAlt_.setDeadline(deadline_ + 1e4);
+
+    hevm.expectRevert(bytes4(keccak256('DEADLINE_SET()')));
+    bluntDelegate.setDeadline(deadline_);
+
+    hevm.stopPrank();
+  }
+
+  function testRevert_setDeadline_invalidDeadline() public {
+    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    hevm.startPrank(_bluntProjectOwner);
+    hevm.warp(2 days);
+    uint256 deadline_ = block.timestamp - 1e4;
+
+    hevm.expectRevert(bytes4(keccak256('INVALID_DEADLINE()')));
+    bluntDelegateAlt_.setDeadline(deadline_);
+
+    hevm.stopPrank();
   }
 
   ///////////////////////////////////////
