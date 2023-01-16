@@ -74,11 +74,35 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     ) = _formatDeployData();
 
     // Set wrong metadata
+    JBFundAccessConstraints[] memory wrongConstraints = new JBFundAccessConstraints[](1);
+    wrongConstraints[0] = JBFundAccessConstraints(
+      IJBPaymentTerminal(address(1)),
+      address(1),
+      1,
+      1,
+      1,
+      1
+    );
+    JBGroupedSplits[] memory wrongGroupedSplits = new JBGroupedSplits[](1);
+    JBSplit[] memory wrongSplits = new JBSplit[](1);
+    wrongSplits[0] = JBSplit({
+      preferClaimed: false,
+      preferAddToBalance: false,
+      percent: 1_000_000_000,
+      projectId: 1,
+      beneficiary: payable(address(1)),
+      lockedUntil: 0,
+      allocator: IJBSplitAllocator(address(1))
+    });
+    wrongGroupedSplits[0] = JBGroupedSplits(2, wrongSplits);
+
     launchProjectData.metadata.dataSource = address(2);
     launchProjectData.metadata.useDataSourceForPay = false;
     launchProjectData.metadata.useDataSourceForRedeem = false;
     launchProjectData.metadata.redemptionRate = 2;
     launchProjectData.metadata.global.pauseTransfers = false;
+    launchProjectData.groupedSplits = wrongGroupedSplits;
+    launchProjectData.fundAccessConstraints = wrongConstraints;
     launchProjectData.data.ballot = IJBFundingCycleBallot(address(1));
 
     uint256 projectId = bluntDeployer.launchProjectFor(
@@ -86,13 +110,27 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       launchProjectData,
       _clone
     );
-    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController.currentFundingCycleOf(projectId);
+    (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
+      .currentFundingCycleOf(projectId);
+    (uint256 distributionLimit, ) = _jbController.distributionLimitOf(
+      projectId,
+      1,
+      IJBPaymentTerminal(address(1)),
+      address(1)
+    );
+    JBSplit[] memory splits = _jbSplitsStore.splitsOf({
+      _projectId: projectId,
+      _domain: block.timestamp,
+      _group: 2
+    });
 
     assertFalse(metadata.dataSource == address(2));
     assertBoolEq(metadata.useDataSourceForPay, true);
     assertBoolEq(metadata.useDataSourceForRedeem, true);
     assertEq(metadata.redemptionRate, JBConstants.MAX_REDEMPTION_RATE);
     assertBoolEq(metadata.global.pauseTransfers, true);
+    assertEq(splits.length, 0);
+    assertEq(distributionLimit, 0);
     assertEq(address(fundingCycle.ballot), address(0));
   }
 
@@ -134,13 +172,16 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
   function testRevert_onlyOwner() public {
     hevm.startPrank(address(1));
-    
+
     hevm.expectRevert('Ownable: caller is not the owner');
-    bluntDeployer._setDelegates(IBluntDelegateDeployer(address(1)), IBluntDelegateCloner(address(2)));
+    bluntDeployer._setDelegates(
+      IBluntDelegateDeployer(address(1)),
+      IBluntDelegateCloner(address(2))
+    );
 
     hevm.expectRevert('Ownable: caller is not the owner');
     bluntDeployer._setFees(300, 100, 1e7, 1e6);
-    
+
     hevm.stopPrank();
   }
 

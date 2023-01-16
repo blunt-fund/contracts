@@ -690,7 +690,9 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   */
   function supportsInterface(bytes4 _interfaceId) public view virtual override returns (bool) {
     return
+      _interfaceId == type(IERC165).interfaceId ||
       _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
-      _interfaceId == type(IJBPayDelegate).interfaceId;
+      _interfaceId == type(IJBPayDelegate).interfaceId ||
+      _interfaceId == type(IJBRedemptionDelegate).interfaceId;
   }
 }
