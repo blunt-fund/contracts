@@ -632,6 +632,22 @@ contract BluntDelegateTest is BluntSetup {
     assertBoolEq(bluntDelegateAlt_.isTargetReached(), true);
   }
 
+  function testSupportsInterface() public {
+    bool supportsIERC165 = bluntDelegate.supportsInterface(type(IERC165).interfaceId);
+    bool supportsIJBFundingCycleDataSource = bluntDelegate.supportsInterface(
+      type(IJBFundingCycleDataSource).interfaceId
+    );
+    bool supportsIJBPayDelegate = bluntDelegate.supportsInterface(type(IJBPayDelegate).interfaceId);
+    bool supportsIJBRedemptionDelegate = bluntDelegate.supportsInterface(
+      type(IJBRedemptionDelegate).interfaceId
+    );
+
+    assertBoolEq(supportsIERC165, true);
+    assertBoolEq(supportsIJBFundingCycleDataSource, true);
+    assertBoolEq(supportsIJBPayDelegate, true);
+    assertBoolEq(supportsIJBRedemptionDelegate, true);
+  }
+
   ///////////////////////////////////////
   /////////////// EVENTS ////////////////
   ///////////////////////////////////////
