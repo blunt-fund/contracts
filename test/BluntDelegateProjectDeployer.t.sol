@@ -83,11 +83,25 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       1,
       1
     );
+    JBGroupedSplits[] memory wrongGroupedSplits = new JBGroupedSplits[](1);
+    JBSplit[] memory wrongSplits = new JBSplit[](1);
+    wrongSplits[0] = JBSplit({
+      preferClaimed: false,
+      preferAddToBalance: false,
+      percent: 1_000_000_000,
+      projectId: 1,
+      beneficiary: payable(address(1)),
+      lockedUntil: 0,
+      allocator: IJBSplitAllocator(address(1))
+    });
+    wrongGroupedSplits[0] = JBGroupedSplits(2, wrongSplits);
+
     launchProjectData.metadata.dataSource = address(2);
     launchProjectData.metadata.useDataSourceForPay = false;
     launchProjectData.metadata.useDataSourceForRedeem = false;
     launchProjectData.metadata.redemptionRate = 2;
     launchProjectData.metadata.global.pauseTransfers = false;
+    launchProjectData.groupedSplits = wrongGroupedSplits;
     launchProjectData.fundAccessConstraints = wrongConstraints;
     launchProjectData.data.ballot = IJBFundingCycleBallot(address(1));
 
@@ -98,18 +112,24 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     );
     (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
       .currentFundingCycleOf(projectId);
-
-    assertFalse(metadata.dataSource == address(2));
-    assertBoolEq(metadata.useDataSourceForPay, true);
-    assertBoolEq(metadata.useDataSourceForRedeem, true);
-    assertEq(metadata.redemptionRate, JBConstants.MAX_REDEMPTION_RATE);
-    assertBoolEq(metadata.global.pauseTransfers, true);
     (uint256 distributionLimit, ) = _jbController.distributionLimitOf(
       projectId,
       1,
       IJBPaymentTerminal(address(1)),
       address(1)
     );
+    JBSplit[] memory splits = _jbSplitsStore.splitsOf({
+      _projectId: projectId,
+      _domain: block.timestamp,
+      _group: 2
+    });
+
+    assertFalse(metadata.dataSource == address(2));
+    assertBoolEq(metadata.useDataSourceForPay, true);
+    assertBoolEq(metadata.useDataSourceForRedeem, true);
+    assertEq(metadata.redemptionRate, JBConstants.MAX_REDEMPTION_RATE);
+    assertBoolEq(metadata.global.pauseTransfers, true);
+    assertEq(splits.length, 0);
     assertEq(distributionLimit, 0);
     assertEq(address(fundingCycle.ballot), address(0));
   }
