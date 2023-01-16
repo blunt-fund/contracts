@@ -18,6 +18,8 @@ contract BluntDelegate is IBluntDelegate {
   error ROUND_NOT_ENDED();
   error ROUND_CLOSED();
   error ROUND_NOT_CLOSED();
+  error DEADLINE_SET();
+  error INVALID_DEADLINE();
   error NOT_PROJECT_OWNER();
 
   //*********************************************************************//
@@ -29,6 +31,7 @@ contract BluntDelegate is IBluntDelegate {
     uint256 duration
   );
   event RoundClosed();
+  event DeadlineSet(uint256 deadline);
 
   //*********************************************************************//
   // ------------------------ immutable storage ------------------------ //
@@ -96,14 +99,14 @@ contract BluntDelegate is IBluntDelegate {
   /** 
     @notice
     The minimum amount of contributions while this data source is in effect.
-    When `isTargetUsd` is enabled, it is a 6 point decimal number.
+    When `isTargetUsd` is enabled, it is a 6 point decimal number, else a wei amount.
   */
   uint256 private immutable target;
 
   /** 
     @notice
     The maximum amount of contributions while this data source is in effect. 
-    When `isHardcapUsd` is enabled, it is a 6 point decimal number.
+    When `isHardcapUsd` is enabled, it is a 6 point decimal number, else a wei amount.
   */
   uint256 private immutable hardcap;
 
@@ -112,12 +115,6 @@ contract BluntDelegate is IBluntDelegate {
     Reserved rate to be set in case of a successful round
   */
   uint256 private immutable afterRoundReservedRate;
-
-  /**
-    @notice
-    Deadline of the round
-  */
-  uint256 private immutable deadline;
 
   /**
     @notice
@@ -139,7 +136,13 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Total contributions received during round
   */
-  uint248 private totalContributions;
+  uint208 private totalContributions;
+
+  /**
+    @notice
+    Deadline of the round
+  */
+  uint40 private deadline;
 
   /**
     @notice
@@ -190,9 +193,8 @@ contract BluntDelegate is IBluntDelegate {
     isHardcapUsd = _deployBluntDelegateData.isHardcapUsd;
 
     /// Set deadline based on round duration
-    deadline = _deployBluntDelegateDeployerData.duration == 0
-      ? 0
-      : block.timestamp + _deployBluntDelegateDeployerData.duration;
+    if (_deployBluntDelegateDeployerData.duration != 0)
+      deadline = uint40(block.timestamp + _deployBluntDelegateDeployerData.duration);
 
     /// Store afterRoundSplits
     for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
@@ -239,8 +241,8 @@ contract BluntDelegate is IBluntDelegate {
     if (deadline != 0 && block.timestamp > deadline) revert ROUND_ENDED();
 
     /// Update totalContributions and contributions with amount paid
-    if (_data.amount.value > type(uint248).max) revert CAP_REACHED();
-    totalContributions += uint248(_data.amount.value);
+    if (_data.amount.value > type(uint208).max) revert CAP_REACHED();
+    totalContributions += uint208(_data.amount.value);
 
     /// Revert if `totalContributions` exceeds `hardcap`
     _hardcapCheck();
@@ -279,7 +281,7 @@ contract BluntDelegate is IBluntDelegate {
       // Only if round is open
       if (!isRoundClosed) {
         /// Decrease totalContributions by amount redeemed
-        totalContributions -= uint248(_data.reclaimedAmount.value);
+        totalContributions -= uint208(_data.reclaimedAmount.value);
       }
     }
   }
@@ -348,6 +350,25 @@ contract BluntDelegate is IBluntDelegate {
     }
 
     emit RoundClosed();
+  }
+
+  /**
+    @notice 
+    Set a deadline for rounds with no duration set.
+
+    @param deadline_ The new deadline for the round.
+
+    @dev 
+    Can only be called once by the appointed project owner.
+  */
+  function setDeadline(uint256 deadline_) external override {
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    if (isRoundClosed) revert ROUND_CLOSED();
+    if (deadline != 0) revert DEADLINE_SET();
+    if (uint40(deadline_) < block.timestamp) revert INVALID_DEADLINE();
+
+    deadline = uint40(deadline_);
+    emit DeadlineSet(deadline_);
   }
 
   //*********************************************************************//
