@@ -334,10 +334,14 @@ contract BluntDelegate is IBluntDelegate {
     Returns info related to the round.
   */
   function getRoundInfo() external view override returns (RoundInfo memory) {
+
+    /// Get a reference to the terminal.
+    IJBPaymentTerminal _terminal = directory.primaryTerminalOf(projectId, JBTokens.ETH);
+
     return
       RoundInfo(
-        IJBPayoutRedemptionPaymentTerminal(msg.sender).store().balanceOf(
-          msg.sender,
+        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(
+          _terminal,
           _data.projectId
         ),
         target,
@@ -421,7 +425,7 @@ contract BluntDelegate is IBluntDelegate {
     );
 
     // Calculate the fee to take.
-    fee = _calculateFee(terminal.store().balanceOf(jbEthTerminalAddress, projectId));
+    fee = _calculateFee(terminal.store().balanceOf(terminal, projectId));
 
     /// Format fee split.
     JBSplit[] memory feeSplits = new JBSplit[](1);
