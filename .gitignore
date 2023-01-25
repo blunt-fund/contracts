@@ -6,6 +6,7 @@ node_modules/
 *.log
 *.gz
 *.toc
+*.txt
 __pycache__
 
 # Ignores development broadcast logs
