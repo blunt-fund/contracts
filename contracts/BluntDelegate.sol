@@ -79,7 +79,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Constants used to calculate fee.
 
-    TODO: describe these plz @jacopo.
+    TODO: describe these plz jacopo.
   */
   uint256 public immutable MAX_K;
   uint256 public immutable MIN_K;
@@ -201,16 +201,16 @@ contract BluntDelegate is IBluntDelegate {
     IJBPayoutRedemptionPaymentTerminal _terminal = IJBPayoutRedemptionPaymentTerminal(msg.sender);
 
     /// Make sure the hardhat hasn't been reached.
-    if (hardcap_ != 0) {
+    if (hardcap != 0) {
       if (isHardcapUsd) {
         // Convert the hardcap to ETH.
-        hardcap_ = PRBMath.muldiv(
-          hardcap_,
+        hardcap = PRBMath.muldiv(
+          hardcap,
           _terminal.decimals,
           prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals)
         );
       }
-      if (_terminal.store().balanceOf(msg.sender, _data.projectId) > hardcap_) revert CAP_REACHED();
+      if (_terminal.store().balanceOf(msg.sender, _data.projectId) > hardcap) revert CAP_REACHED();
     }
   }
 
@@ -233,7 +233,7 @@ contract BluntDelegate is IBluntDelegate {
 
     /// Get reconfigure data.
     (
-      JBPayoutTerminal payoutTerminal,
+      IJBPayoutTerminal payoutTerminal,
       uint256 fee,
       JBFundingCycleData memory data,
       JBFundingCycleMetadata memory metadata,
@@ -340,7 +340,7 @@ contract BluntDelegate is IBluntDelegate {
 
     return
       RoundInfo(
-        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, _data.projectId),
+        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, projectId),
         target,
         hardcap,
         projectOwner,
@@ -370,7 +370,7 @@ contract BluntDelegate is IBluntDelegate {
       }
     }
     return
-      IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, _data.projectId) >
+      IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, projectId) >
       target_;
   }
 
@@ -422,7 +422,7 @@ contract BluntDelegate is IBluntDelegate {
     );
 
     // Calculate the fee to take.
-    fee = _calculateFee(terminal.store().balanceOf(terminal, projectId));
+    fee = _calculateFee(terminal.store().balanceOf(terminal, projectId), terminal.decimals());
 
     /// Format fee split.
     JBSplit[] memory feeSplits = new JBSplit[](1);
@@ -443,7 +443,7 @@ contract BluntDelegate is IBluntDelegate {
     // Format the fund access constraints.
     fundAccessConstraints = new JBFundAccessConstraints[](1);
     fundAccessConstraints[0] = JBFundAccessConstraints({
-      terminal: jbEthTerminal,
+      terminal: terminal,
       token: JBTokens.ETH,
       distributionLimit: fee,
       distributionLimitCurrency: JBCurrencies.ETH,
@@ -456,12 +456,12 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     Calculate fee for successful rounds. Used in `_formatReconfigData`
   */
-  function _calculateFee(uint256 raised) private view returns (uint256 fee) {
+  function _calculateFee(uint256 raised, uint256 decimals) private view returns (uint256 fee) {
     unchecked {
       uint256 raisedUsd = PRBMath.muldiv(
         raised,
-        prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals),
-        _terminal.decimals
+        prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, decimals),
+        decimals
       );
 
       uint256 k;
