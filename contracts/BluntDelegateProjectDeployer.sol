@@ -22,27 +22,27 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
 
   /**
     @notice
-    WETH address on Uniswap
+    The ID of the Blunt Finance project.
   */
-  address public immutable ethAddress;
+  uint256 public immutable feeProjectId;
 
   /** 
     @notice
-    USDC address on Uniswap 
+    JB directory address
   */
-  address public immutable usdcAddress;
-
-  /**
-    @notice
-    The ID of the Blunt Finance project.
-  */
-  uint256 public immutable bluntProjectId;
+  IJBDirectory public immutable override directory;
 
   /** 
     @notice
     JB controller address
   */
   IJBController public immutable override controller;
+
+  /** 
+    @notice
+    JB prices address
+  */
+  IJBPrices public immutable override prices;
 
   //*********************************************************************//
   // ------------------------ mutable storage -------------------------- //
@@ -79,11 +79,11 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     address deployer,
     IBluntDelegateDeployer _delegateDeployer,
     IBluntDelegateCloner _delegateCloner,
+    IJBDirectory _directory,
     IJBController _controller,
+    IJBPrices _prices,
     IJBOperatorStore _operatorStore,
-    uint256 _bluntProjectId,
-    address _ethAddress,
-    address _usdcAddress,
+    uint256 _feeProjectId,
     uint16 _maxK,
     uint16 _minK,
     uint56 _upperFundraiseBoundary,
@@ -91,13 +91,13 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
   ) JBOperatable(_operatorStore) {
     // Override ownable's default owner due to CREATE3 deployment
     _transferOwnership(deployer);
-    
+
     delegateDeployer = _delegateDeployer;
     delegateCloner = _delegateCloner;
+    directory = _directory;
     controller = _controller;
-    bluntProjectId = _bluntProjectId;
-    ethAddress = _ethAddress;
-    usdcAddress = _usdcAddress;
+    prices = _prices;
+    feeProjectId = _feeProjectId;
     maxK = _maxK;
     minK = _minK;
     upperFundraiseBoundary = _upperFundraiseBoundary;
@@ -110,9 +110,9 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
 
   /** 
     @notice 
-    Launches a new project with a blunt round data source attached.
+    Launches a new project with a round data source attached.
 
-    @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a blunt round data source.
+    @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a round data source.
     @param _launchProjectData Data necessary to fulfill the transaction to launch a project.
     @param _clone True if BluntDelegate is to be an immutable clone
 
@@ -128,11 +128,8 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
 
     DeployBluntDelegateDeployerData memory _deployerData = DeployBluntDelegateDeployerData(
       controller,
-      uint48(bluntProjectId),
+      uint48(feeProjectId),
       uint48(projectId),
-      uint40(_launchProjectData.data.duration),
-      ethAddress,
-      usdcAddress,
       maxK,
       minK,
       upperFundraiseBoundary,
@@ -150,8 +147,6 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
         _deployBluntDelegateData
       );
     }
-
-    _launchProjectData = _formatLaunchData(_launchProjectData, _delegateAddress);
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);
@@ -204,64 +199,51 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     @notice
     Launches a project.
 
-    @param _owner The address to set as the owner of the project. The project ERC-721 will be owned by this address.
+    @param _delegate The address to set as the owner of the project. The project ERC-721 will be owned by this address.
     @param _launchProjectData Data necessary to fulfill the transaction to launch the project.
   */
-  function _launchProjectFor(
-    address _owner,
-    JBLaunchProjectData memory _launchProjectData
-  ) internal {
+  function _launchProjectFor(address _delegate, JBLaunchProjectData memory _launchProjectData)
+    internal
+  {
     controller.launchProjectFor(
-      _owner,
+      _delegate, // The delegate owns the project.
       _launchProjectData.projectMetadata,
-      _launchProjectData.data,
-      _launchProjectData.metadata,
-      _launchProjectData.mustStartAtOrAfter,
-      _launchProjectData.groupedSplits,
-      _launchProjectData.fundAccessConstraints,
-      _launchProjectData.terminals,
+      JBFundingCycleData ({
+        duration: 0, 
+        weight: 1000000E18, // 1m tokens per ETH contributed.
+        discountRate: 0,
+        ballot: IJBFundingCycleBallot(address(0))
+      }),
+      JBFundingCycleMetadata ({
+        global: JBGlobalFundingCycleMetadata({
+          allowSetTerminals: false,
+          allowSetController: false,
+          pauseTransfers: false
+        }),
+        reservedRate: 0,
+        // Full refunds.
+        redemptionRate: JBConstants.MAX_REDEMPTION_RATE,
+        ballotRedemptionRate: JBConstants.MAX_REDEMPTION_RATE,
+        pausePay: false,
+        pauseDistributions: false,
+        pauseRedeem: false,
+        pauseBurn: false,
+        allowMinting: false,
+        allowTerminalMigration: false,
+        allowControllerMigration: false,
+        holdFees: false,
+        preferClaimedTokenOverride: false,
+        useTotalOverflowForRedemptions: false,
+        useDataSourceForPay: true,
+        useDataSourceForRedeem: false,
+        dataSource: _delegate, // The delegate is the data source.
+        metadata: 0 
+      }),
+      _launchProjectData.mustStartAtOrAfter
+      new JBGroupedSplits[](0),
+      new JBFundAccessConstraints[](0),
+      _launchProjectData.terminals
       _launchProjectData.memo
     );
-  }
-
-  /** 
-    @notice
-    Format launch data for a project.
-
-    @param launchData Data necessary to fulfill the transaction to launch the project.
-    @param delegateAddress The address of the delegate contract.
-
-    TODO: Check all settings necessary to guarantee round functionality are correctly defined here.
-  */
-  function _formatLaunchData(
-    JBLaunchProjectData memory launchData,
-    address delegateAddress
-  ) private pure returns (JBLaunchProjectData memory) {
-    // Require weight to be non zero to allow for redemptions
-    if (launchData.data.weight == 0)
-      revert INVALID_TOKEN_ISSUANCE();
-
-    // Set the data source address as the data source of the provided metadata.
-    launchData.metadata.dataSource = delegateAddress;
-    // Set the project to use the data source for its pay and redeem functions.
-    launchData.metadata.useDataSourceForPay = true;
-    launchData.metadata.useDataSourceForRedeem = true;
-    // Enable full redemptions
-    launchData.metadata.pauseRedeem = false;
-    launchData.metadata.redemptionRate = JBConstants.MAX_REDEMPTION_RATE;
-    // Disable token transfers
-    launchData.metadata.global.pauseTransfers = true;
-    // Enforce empty ballot
-    launchData.data.ballot = IJBFundingCycleBallot(address(0));
-    // Enforce empty groupedSplits
-    launchData.groupedSplits = new JBGroupedSplits[](0);
-    // Enforce empty fundAccessConstraints
-    launchData.fundAccessConstraints = new JBFundAccessConstraints[](0);
-
-    // Duration param is passed to the delegate contract to calculate the round deadline,
-    // and then set to 0 prior to launch project to avoid the need to queue a FC.
-    launchData.data.duration = 0;
-
-    return launchData;
   }
 }

@@ -2,29 +2,36 @@
 pragma solidity 0.8.17;
 
 import './interfaces/IBluntDelegate.sol';
-import './interfaces/IPriceFeed.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPrices.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBTokens.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBCurrencies.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 
 /// @title Base Blunt Finance data source for Juicebox projects.
 /// @author jacopo <jacopo@slice.so>
+/// @author jango
 /// @notice Permissionless funding rounds with target, hardcap, deadline and a set of pre-defined rules.
 contract BluntDelegate is IBluntDelegate {
+
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
+
   error INVALID_PAYMENT_EVENT();
   error CAP_REACHED();
   error ROUND_ENDED();
   error ROUND_NOT_ENDED();
   error ROUND_CLOSED();
-  error ROUND_NOT_CLOSED();
   error DEADLINE_SET();
   error INVALID_DEADLINE();
   error NOT_PROJECT_OWNER();
+  error TARGET_NOT_REACHED();
 
   //*********************************************************************//
   // ------------------------------ events ----------------------------- //
   //*********************************************************************//
+
   event RoundCreated(
     DeployBluntDelegateData deployBluntDelegateData,
     uint256 projectId,
@@ -37,94 +44,74 @@ contract BluntDelegate is IBluntDelegate {
   // ------------------------ immutable storage ------------------------ //
   //*********************************************************************//
 
-  /** 
-    @notice 
-    The ETH token address in Juicebox
-  */
-  address private constant ETH = address(0x000000000000000000000000000000000000EEEe);
-
-  /**
-    @notice
-    Price feed instance
-  */
-  IPriceFeed private constant priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
-
   /**
     @notice
     The directory of terminals and controllers for projects.
   */
   IJBDirectory private immutable directory;
 
+  /**
+    @notice
+    The controller with which new projects should be deployed.
+  */
   IJBController private immutable controller;
 
   /**
     @notice
-    The ID of the Blunt Finance project.
+    The contract that exposes price feeds.
   */
-  uint256 public immutable bluntProjectId;
+  IJBPrices public immutable override prices;
 
   /**
     @notice
-    The ID of the project.
+    The ID of the JB project that collects fees.
+  */
+  uint256 public immutable feeProjectId;
+
+  /**
+    @notice
+    The ID of the project conducting a round.
   */
   uint256 public immutable projectId;
 
   /**
     @notice
-    Constants used to calculate Blunt Finance fee
+    Constants used to calculate fee.
+
+    TODO: describe these plz @jacopo.
   */
   uint256 public immutable MAX_K;
   uint256 public immutable MIN_K;
   uint256 public immutable UPPER_FUNDRAISE_BOUNDARY_USD;
   uint256 public immutable LOWER_FUNDRAISE_BOUNDARY_USD;
 
-  /**
-    @notice
-    WETH address on Uniswap
-  */
-  address private immutable ethAddress;
-
-  /**
-    @notice
-    USDC address on Uniswap
-  */
-  address private immutable usdcAddress;
-
   /** 
     @notice
-    The owner of the project once the blunt round is concluded successfully.
+    The owner of the project if the round is concluded successfully.
   */
   address private immutable projectOwner;
 
   /** 
     @notice
-    The minimum amount of contributions while this data source is in effect.
-    When `isTargetUsd` is enabled, it is a 6 point decimal number, else a wei amount.
+    The minimum amount of contributions to deem the round successful. Fixed point number using the same amount of decimals as the payment terminal being used.
   */
   uint256 private immutable target;
 
   /** 
     @notice
-    The maximum amount of contributions while this data source is in effect. 
-    When `isHardcapUsd` is enabled, it is a 6 point decimal number, else a wei amount.
+    The maximum amount of contributions possible while the round is in effect. Fixed point number using the same amount of decimals as the payment terminal being used.
   */
   uint256 private immutable hardcap;
 
   /** 
     @notice
-    Reserved rate to be set in case of a successful round
-  */
-  uint256 private immutable afterRoundReservedRate;
-
-  /**
-    @notice
-    True if a target is expressed in USD
+    True if the target is expressed in USD. False if ETH.
   */
   bool private immutable isTargetUsd;
 
-  /**
+  /** 
     @notice
-    True if a hardcap is expressed in USD
+    True if the hardcap is expressed in USD. False if ETH.
   */
   bool private immutable isHardcapUsd;
 
@@ -134,33 +121,15 @@ contract BluntDelegate is IBluntDelegate {
 
   /**
     @notice
-    Total contributions received during round
-  */
-  uint208 private totalContributions;
-
-  /**
-    @notice
-    Deadline of the round
+    The timestamp after which the round can be closed. If zero, the round can be closed anytime after the target is met.
   */
   uint40 private deadline;
 
   /**
     @notice
-    True if the round has been closed 
+    If the round has been closed.
   */
   bool private isRoundClosed;
-
-  /** 
-    @notice
-    Project metadata splits to be enabled when a successful round is closed.
-  */
-  JBSplit[] private afterRoundSplits;
-
-  /**
-    @notice
-    Mapping from beneficiary to contributions
-  */
-  mapping(address => uint256) public contributions;
 
   //*********************************************************************//
   // -------------------------- constructor ---------------------------- //
@@ -174,19 +143,17 @@ contract BluntDelegate is IBluntDelegate {
     DeployBluntDelegateDeployerData memory _deployBluntDelegateDeployerData,
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) {
+    feeProjectId = _deployBluntDelegateDeployerData.feeProjectId;
+    directory = _deployBluntDelegateDeployerData.directory;
+    controller = _deployBluntDelegateDeployerData.controller;
+    prices = _deployBluntDelegateDeployerData.prices;
     MAX_K = _deployBluntDelegateDeployerData.maxK;
     MIN_K = _deployBluntDelegateDeployerData.minK;
     UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.upperFundraiseBoundary;
     LOWER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.lowerFundraiseBoundary;
-    bluntProjectId = _deployBluntDelegateDeployerData.bluntProjectId;
-    projectId = _deployBluntDelegateDeployerData.projectId;
-    ethAddress = _deployBluntDelegateDeployerData.ethAddress;
-    usdcAddress = _deployBluntDelegateDeployerData.usdcAddress;
-    controller = _deployBluntDelegateDeployerData.controller;
 
-    directory = _deployBluntDelegateData.directory;
+    projectId = _deployBluntDelegateData.projectId;
     projectOwner = _deployBluntDelegateData.projectOwner;
-    afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
     target = _deployBluntDelegateData.target;
     isTargetUsd = _deployBluntDelegateData.isTargetUsd;
     hardcap = _deployBluntDelegateData.hardcap;
@@ -194,16 +161,7 @@ contract BluntDelegate is IBluntDelegate {
 
     /// Set deadline based on round duration
     if (_deployBluntDelegateDeployerData.duration != 0)
-      deadline = uint40(block.timestamp + _deployBluntDelegateDeployerData.duration);
-
-    /// Store afterRoundSplits
-    for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
-      afterRoundSplits.push(_deployBluntDelegateData.afterRoundSplits[i]);
-
-      unchecked {
-        ++i;
-      }
-    }
+      deadline = uint40(block.timestamp + _deployBluntDelegateData.duration);
 
     emit RoundCreated(
       _deployBluntDelegateData,
@@ -230,124 +188,84 @@ contract BluntDelegate is IBluntDelegate {
     /// Require that
     /// - The caller is a terminal of the project
     /// - The call is being made on behalf of an interaction with the correct project
-    /// - The blunt round hasn't been closed
-    if (
-      !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
-      _data.projectId != projectId ||
-      isRoundClosed
-    ) revert INVALID_PAYMENT_EVENT();
-
-    /// Require that the funding cycle related to the round hasn't ended
-    if (deadline != 0 && block.timestamp > deadline) revert ROUND_ENDED();
-
-    /// Update totalContributions and contributions with amount paid
-    if (_data.amount.value > type(uint208).max) revert CAP_REACHED();
-    totalContributions += uint208(_data.amount.value);
-
-    /// Revert if `totalContributions` exceeds `hardcap`
-    _hardcapCheck();
-
-    /// Cannot overflow as totalContributions would overflow first
-    unchecked {
-      contributions[_data.beneficiary] += _data.amount.value;
-    }
-  }
-
-  /**
-    @notice 
-    Part of IJBRedemptionDelegate, this function gets called when the beneficiary redeems tokens. 
-    It will update storage if conditions are met. 
-
-    @dev 
-    This function will revert if the contract calling is not one of the project's terminals. 
-
-    @param _data The Juicebox standard project payment data.
-  */
-  function didRedeem(JBDidRedeemData calldata _data) external payable virtual override {
-    /// Require that
-    /// - The caller is a terminal of the project
-    /// - The call is being made on behalf of an interaction with the correct project
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
       _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    unchecked {
-      /// Decrease contributions based on amount redeemed
-      /// @dev Cannot underflow as `_data.reclaimedAmount.value` cannot be higher than `contributions[_data.beneficiary]`
-      /// contributions can be inside unchecked as token transfers are disabled during round
-      contributions[_data.beneficiary] -= _data.reclaimedAmount.value;
+    /// Make sure the round hasn't ended.
+    if (isRoundClosed || (deadline != 0 && block.timestamp > deadline)) revert ROUND_ENDED();
 
-      // Only if round is open
-      if (!isRoundClosed) {
-        /// Decrease totalContributions by amount redeemed
-        totalContributions -= uint208(_data.reclaimedAmount.value);
+    /// Get a reference to the terminal.
+    IJBPayoutRedemptionPaymentTerminal _terminal = IJBPayoutRedemptionPaymentTerminal(msg.sender);
+
+    /// Make sure the hardhat hasn't been reached.
+    if (hardcap_ != 0) {
+      if (isHardcapUsd) {
+        // Convert the hardcap to ETH.
+        hardcap_ = PRBMath.muldiv(
+          hardcap_,
+          _terminal.decimals,
+          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals),
+        );
       }
+      if (_terminal.store().balanceOf(msg.sender, _data.projectId) > hardcap_) revert CAP_REACHED();
     }
   }
 
   /**
     @notice 
-    Close blunt round if target has been reached:
-    - Pay BF fee, 
-    - Reconfigure next FC,
-    - Transfer project NFT to projectOwner.
-    If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
+    Close round if target has been reached.
 
     @dev 
-    Can only be called once by the appointed project owner.
+    Can only be called once.
   */
   function closeRound() external override {
-    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    /// Make sure the round isn't already closed.
     if (isRoundClosed) revert ROUND_CLOSED();
+
+    // Make sure the deadline has passed if one was set.
+    if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
+
+    // Make sure the target has been reached.    
+    if (!isTargetReached()) revert TARGET_NOT_REACHED();
+
+    /// Get reconfigure data.
+    (
+      JBPayoutTerminal payoutTerminal,
+      uint256 fee,
+      JBFundingCycleData memory data,
+      JBFundingCycleMetadata memory metadata,
+      JBGroupedSplits[] memory splits,
+      JBFundAccessConstraints[] memory fundAccessConstraints
+    ) = _formatReconfigData();
+
+    /// Reconfigure the funding cycle.
+    controller.reconfigureFundingCyclesOf(
+      projectId,
+      data,
+      metadata,
+      0,
+      splits,
+      fundAccessConstraints,
+      'Blunt round completed'
+    );
+
+    // Distribute payout fee to the fee project.
+    payoutTerminal.distributePayoutsOf({
+      _projectId: projectId,
+      _amount: fee,
+      _currency: JBCurrencies.ETH,
+      _token: JBTokens.ETH,
+      _minReturnedTokens: 0,
+      _memo: ''
+    });
+
+    /// Transfer project ownership to projectOwner
+    directory.projects().safeTransferFrom(address(this), projectOwner, projectId);
+
+    /// Set the round as closed.
     isRoundClosed = true;
-
-    if (isTargetReached()) {
-      // Prevent successful rounds to be closed before the deadline
-      if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
-
-      (
-        address jbEthTerminalAddress,
-        uint256 bluntFee,
-        JBFundingCycleData memory data,
-        JBFundingCycleMetadata memory metadata,
-        JBGroupedSplits[] memory splits,
-        JBFundAccessConstraints[] memory fundAccessConstraints
-      ) = _formatReconfigData();
-
-      /// Reconfigure Funding Cycle
-      controller.reconfigureFundingCyclesOf(
-        projectId,
-        data,
-        metadata,
-        0,
-        splits,
-        fundAccessConstraints,
-        'Blunt round completed'
-      );
-
-      // Distribute payout fee to Blunt Finance
-      string memory projectIdString = _toString(projectId);
-      IJBPayoutTerminal(jbEthTerminalAddress).distributePayoutsOf({
-        _projectId: projectId,
-        _amount: bluntFee,
-        _currency: 1,
-        _token: ETH,
-        _minReturnedTokens: 0,
-        _memo: string(
-          abi.encodePacked(
-            'Fee from [Project #',
-            projectIdString,
-            '](https://juicebox.money/v2/p/',
-            projectIdString,
-            ')'
-          )
-        )
-      });
-
-      /// Transfer project ownership to projectOwner
-      directory.projects().safeTransferFrom(address(this), projectOwner, projectId);
-    }
 
     emit RoundClosed();
   }
@@ -362,12 +280,21 @@ contract BluntDelegate is IBluntDelegate {
     Can only be called once by the appointed project owner.
   */
   function setDeadline(uint256 deadline_) external override {
+    /// Make sure the appointed project owner is making the change.
     if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+
+    /// Make sure the round isn't closed.
     if (isRoundClosed) revert ROUND_CLOSED();
+
+    /// Make sure the deadline isn't already set.
     if (deadline != 0) revert DEADLINE_SET();
+
+    /// Make sure the deadline being set is in the future.
     if (uint40(deadline_) < block.timestamp) revert INVALID_DEADLINE();
 
+    /// Set the deadline.
     deadline = uint40(deadline_);
+
     emit DeadlineSet(deadline_);
   }
 
@@ -379,18 +306,13 @@ contract BluntDelegate is IBluntDelegate {
     @notice 
     Part of IJBFundingCycleDataSource, this function gets called when the project receives a payment. It will set itself as the delegate to get a callback from the terminal.
 
-    @dev 
-    This function will revert if the contract calling it is not the store of one of the project's terminals. 
-
     @param _data The Juicebox standard project payment data.
 
-    @return weight The weight that tokens should get minted in accordance to 
+    @return weight The weight that tokens should get minted in accordance with. 
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
   */
-  function payParams(
-    JBPayParamsData calldata _data
-  )
+  function payParams(JBPayParamsData calldata _data)
     external
     view
     override
@@ -408,51 +330,24 @@ contract BluntDelegate is IBluntDelegate {
   }
 
   /**
-    @notice 
-    Part of IJBFundingCycleDataSource, this function gets called when a project's token holders redeem. It will return the standard properties.
-
-    @param _data The Juicebox standard project redemption data.
-
-    @return reclaimAmount The amount that should be reclaimed from the treasury.
-    @return memo The memo that should be forwarded to the event.
-    @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
-  */
-  function redeemParams(
-    JBRedeemParamsData calldata _data
-  )
-    external
-    view
-    override
-    returns (
-      uint256 reclaimAmount,
-      string memory memo,
-      JBRedemptionDelegateAllocation[] memory delegateAllocations
-    )
-  {
-    JBRedemptionDelegateAllocation[] memory allocations = new JBRedemptionDelegateAllocation[](1);
-    allocations[0] = JBRedemptionDelegateAllocation(IJBRedemptionDelegate(address(this)), 0);
-
-    /// Forward the recieved weight and memo, and use this contract as a redeem delegate.
-    return (_data.reclaimAmount.value, _data.memo, allocations);
-  }
-
-  /**
     @notice
-    Returns info related to round.
+    Returns info related to the round.
   */
-  function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
-    roundInfo = RoundInfo(
-      totalContributions,
-      target,
-      hardcap,
-      projectOwner,
-      afterRoundReservedRate,
-      afterRoundSplits,
-      isRoundClosed,
-      deadline,
-      isTargetUsd,
-      isHardcapUsd
-    );
+  function getRoundInfo() external view override returns (RoundInfo memory) {
+    return
+      RoundInfo(
+        IJBPayoutRedemptionPaymentTerminal(msg.sender).store().balanceOf(
+          msg.sender,
+          _data.projectId
+        ),
+        target,
+        hardcap,
+        projectOwner,
+        isRoundClosed,
+        deadline,
+        isTargetUsd,
+        isHardcapUsd
+      );
   }
 
   /**
@@ -460,34 +355,27 @@ contract BluntDelegate is IBluntDelegate {
     Returns true if total contributions received surpass the round target.
   */
   function isTargetReached() public view override returns (bool) {
+    /// Get a reference to the terminal.
+    IJBPaymentTerminal _terminal = directory.primaryTerminalOf(projectId, JBTokens.ETH);
+
     uint256 target_ = target;
     if (target_ != 0) {
       if (isTargetUsd) {
-        target_ = priceFeed.getQuote(uint128(target_), usdcAddress, ethAddress, 30 minutes);
+        target_ = PRBMath.muldiv(
+          target_,
+          _terminal.decimals,
+          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals),
+        );
       }
     }
-    return totalContributions > target_;
+    return
+      IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, _data.projectId) >
+      target_;
   }
 
   //*********************************************************************//
   // ----------------------- private functions ------------------------- //
   //*********************************************************************//
-
-  /**
-    @notice
-    Revert if total contributions received surpass the round hardcap.
-    Used in `didPay`
-  */
-  function _hardcapCheck() private view {
-    uint256 hardcap_ = hardcap;
-
-    if (hardcap_ != 0) {
-      if (isHardcapUsd) {
-        hardcap_ = priceFeed.getQuote(uint128(hardcap_), usdcAddress, ethAddress, 30 minutes);
-      }
-      if (totalContributions > hardcap_) revert CAP_REACHED();
-    }
-  }
 
   /**
     @notice
@@ -497,8 +385,8 @@ contract BluntDelegate is IBluntDelegate {
     private
     view
     returns (
-      address jbEthTerminalAddress,
-      uint256 bluntFee,
+      IJBPayoutTerminal terminal,
+      uint256 fee,
       JBFundingCycleData memory data,
       JBFundingCycleMetadata memory metadata,
       JBGroupedSplits[] memory splits,
@@ -508,62 +396,56 @@ contract BluntDelegate is IBluntDelegate {
     /// Set funding cycle data
     data = JBFundingCycleData({
       duration: 0,
-      weight: 1e24, /// token issuance 1M
+      weight: 0, /// Inherit from funding cycle 1.
       discountRate: 0,
       ballot: IJBFundingCycleBallot(address(0))
     });
 
-    /// Edit funding cycle metadata:
     /// Get current funding cycle metadata
     (, metadata) = controller.currentFundingCycleOf(projectId);
-    /// Set reservedRate from `afterRoundReservedRate`
-    metadata.reservedRate = afterRoundReservedRate; // TODO: Make this optional
-    /// Disable redemptions
-    metadata.pauseRedeem = true;
+
+    /// Remove redemption rates.
     delete metadata.redemptionRate;
-    /// Enable transfers
-    delete metadata.global.pauseTransfers;
-    /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
+    delete metadata.ballotRedemptionRate;
+
+    /// Pause pay to allow projectOwner to reconfig as needed before re-enabling.
     metadata.pausePay = true;
-    /// Ensure distributions are enabled
-    metadata.pauseDistributions = false;
-    /// Detach dataSource
+
+    /// Detach data source.
     delete metadata.useDataSourceForPay;
-    delete metadata.useDataSourceForRedeem;
     delete metadata.dataSource;
 
-    // Calculate BF fee
-    bluntFee = _calculateFee(totalContributions);
+    // Get project's ETH terminal.
+    terminal = IJBPayoutRedemptionPaymentTerminal(
+      directory.primaryTerminalOf(projectId, JBTokens.ETH)
+    );
 
-    /// Format bluntSplits
-    JBSplit[] memory bluntSplits = new JBSplit[](1);
-    bluntSplits[0] = JBSplit({
+    // Calculate the fee to take.
+    fee = _calculateFee(terminal.store().balanceOf(jbEthTerminalAddress, projectId));
+
+    /// Format fee split.
+    JBSplit[] memory feeSplits = new JBSplit[](1);
+    feeSplits[0] = JBSplit({
       preferClaimed: false,
       preferAddToBalance: false,
-      percent: 1_000_000_000,
-      projectId: bluntProjectId,
+      percent: JBConstants.SPLITS_TOTAL_PERCENT,
+      projectId: feeProjectId,
       beneficiary: payable(projectOwner),
       lockedUntil: 0,
       allocator: IJBSplitAllocator(address(0))
     });
 
-    // Format splits
-    splits = new JBGroupedSplits[](2);
-    splits[0] = JBGroupedSplits(1, bluntSplits); // Payout distribution
-    // TODO: Make this optional
-    splits[1] = JBGroupedSplits(2, afterRoundSplits); // Reserved rate
+    // Format split groups.
+    splits = new JBGroupedSplits[](1);
+    splits[0] = JBGroupedSplits(1, feeSplits); // Payout distribution
 
-    // Get JB ETH terminal
-    IJBPaymentTerminal jbEthTerminal = directory.primaryTerminalOf(projectId, ETH);
-    jbEthTerminalAddress = address(jbEthTerminal);
-
-    // Format fundAccessConstraints
+    // Format the fund access constraints. 
     fundAccessConstraints = new JBFundAccessConstraints[](1);
     fundAccessConstraints[0] = JBFundAccessConstraints({
       terminal: jbEthTerminal,
-      token: ETH,
-      distributionLimit: bluntFee,
-      distributionLimitCurrency: 1,
+      token: JBTokens.ETH,
+      distributionLimit: fee,
+      distributionLimitCurrency: JBCurrencies.ETH,
       overflowAllowance: 0,
       overflowAllowanceCurrency: 0
     });
@@ -575,7 +457,12 @@ contract BluntDelegate is IBluntDelegate {
   */
   function _calculateFee(uint256 raised) private view returns (uint256 fee) {
     unchecked {
-      uint256 raisedUsd = priceFeed.getQuote(uint128(raised), ethAddress, usdcAddress, 30 minutes);
+      uint256 raisedUsd = PRBMath.muldiv(
+        raised,
+        prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals),
+        _terminal.decimals
+      );
+
       uint256 k;
       if (raisedUsd < LOWER_FUNDRAISE_BOUNDARY_USD) {
         k = MAX_K;
@@ -595,48 +482,6 @@ contract BluntDelegate is IBluntDelegate {
 
       /// @dev overflows for [raised > 2^256 / MIN_K], which practically cannot be reached
       fee = (k * raised) / 10000;
-    }
-  }
-
-  /**
-   * @dev Converts a uint256 to its ASCII string decimal representation.
-   */
-  function _toString(uint256 value) internal pure virtual returns (string memory str) {
-    assembly {
-      // The maximum value of a uint256 contains 78 digits (1 byte per digit), but
-      // we allocate 0xa0 bytes to keep the free memory pointer 32-byte word aligned.
-      // We will need 1 word for the trailing zeros padding, 1 word for the length,
-      // and 3 words for a maximum of 78 digits. Total: 5 * 0x20 = 0xa0.
-      let m := add(mload(0x40), 0xa0)
-      // Update the free memory pointer to allocate.
-      mstore(0x40, m)
-      // Assign the `str` to the end.
-      str := sub(m, 0x20)
-      // Zeroize the slot after the string.
-      mstore(str, 0)
-
-      // Cache the end of the memory to calculate the length later.
-      let end := str
-
-      // We write the string from rightmost digit to leftmost digit.
-      // The following is essentially a do-while loop that also handles the zero case.
-      // prettier-ignore
-      for { let temp := value } 1 {} {
-                str := sub(str, 1)
-                // Write the character to the pointer.
-                // The ASCII index of the '0' character is 48.
-                mstore8(str, add(48, mod(temp, 10)))
-                // Keep dividing `temp` until zero.
-                temp := div(temp, 10)
-                // prettier-ignore
-                if iszero(temp) { break }
-            }
-
-      let length := sub(end, str)
-      // Move the pointer 32 bytes leftwards to make room for the length.
-      str := sub(str, 0x20)
-      // Store the length.
-      mstore(str, length)
     }
   }
 

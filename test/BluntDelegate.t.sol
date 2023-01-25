@@ -498,8 +498,8 @@ contract BluntDelegateTest is BluntSetup {
     hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
 
-    uint256 bluntFee = _calculateFee(totalContributions);
-    assertEq(bluntFee, (totalContributions * _maxK) / 10000);
+    uint256 fee = _calculateFee(totalContributions);
+    assertEq(fee, (totalContributions * _maxK) / 10000);
   }
 
   function testCalculateFee_midBoundary() public {
@@ -522,9 +522,9 @@ contract BluntDelegateTest is BluntSetup {
     hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
 
-    uint256 bluntFee = _calculateFee(totalContributions);
+    uint256 fee = _calculateFee(totalContributions);
     uint256 k = (_maxK + _minK) / 2;
-    assertRelApproxEq(bluntFee, (totalContributions * k) / 10000, 0.005e18);
+    assertRelApproxEq(fee, (totalContributions * k) / 10000, 0.005e18);
   }
 
   function testCalculateFee_upperBoundary(uint256 amount) public {
@@ -548,8 +548,8 @@ contract BluntDelegateTest is BluntSetup {
     hevm.prank(_bluntProjectOwner);
     bluntDelegateAlt_.closeRound();
 
-    uint256 bluntFee = _calculateFee(totalContributions);
-    assertEq(bluntFee, (totalContributions * _minK) / 10000);
+    uint256 fee = _calculateFee(totalContributions);
+    assertEq(fee, (totalContributions * _minK) / 10000);
   }
 
   function testCalculateFee_linearDecrement(uint256 amount) public {
@@ -587,8 +587,8 @@ contract BluntDelegateTest is BluntSetup {
       (((_maxK - _minK) * (raisedUsd - _lowerFundraiseBoundary)) /
         (_upperFundraiseBoundary - _lowerFundraiseBoundary));
 
-    uint256 bluntFee = _calculateFee(totalContributions);
-    assertEq(bluntFee, (totalContributions * k) / 10000);
+    uint256 fee = _calculateFee(totalContributions);
+    assertEq(fee, (totalContributions * k) / 10000);
   }
 
   function testIsTargetReached() public {
@@ -956,7 +956,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(address(bluntSplits[0].allocator), address(0));
 
     // Blunt fee logic
-    uint256 bluntFee = _calculateFee(totalContributions_);
+    uint256 fee = _calculateFee(totalContributions_);
     (uint256 distributionLimit, ) = _jbController.distributionLimitOf(
       projectId_,
       _jbFundingCycleStore.latestConfigurationOf(projectId_),
@@ -969,9 +969,9 @@ contract BluntDelegateTest is BluntSetup {
       _jbETHPaymentTerminal,
       _bluntProjectId
     );
-    assertEq(distributionLimit, bluntFee);
-    assertEq(projectBalance, totalContributions_ - bluntFee);
-    assertEq(bfBalance, bluntFee);
+    assertEq(distributionLimit, fee);
+    assertEq(projectBalance, totalContributions_ - fee);
+    assertEq(bfBalance, fee);
 
     address owner = _jbProjects.ownerOf(projectId_);
     assertEq(owner, _bluntProjectOwner);

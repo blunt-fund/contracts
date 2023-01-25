@@ -325,7 +325,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
       (
         address jbEthTerminalAddress,
-        uint256 bluntFee,
+        uint256 fee,
         JBFundingCycleData memory data,
         JBFundingCycleMetadata memory metadata,
         JBGroupedSplits[] memory splits,
@@ -347,7 +347,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       string memory projectIdString = _toString(projectId);
       IJBPayoutTerminal(jbEthTerminalAddress).distributePayoutsOf({
         _projectId: projectId,
-        _amount: bluntFee,
+        _amount: fee,
         _currency: 1,
         _token: ETH,
         _minReturnedTokens: 0,
@@ -405,9 +405,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the local balance.
   */
-  function payParams(
-    JBPayParamsData calldata _data
-  )
+  function payParams(JBPayParamsData calldata _data)
     external
     view
     override
@@ -434,9 +432,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @return memo The memo that should be forwarded to the event.
     @return delegateAllocations The amount to send to delegates instead of adding to the beneficiary.
   */
-  function redeemParams(
-    JBRedeemParamsData calldata _data
-  )
+  function redeemParams(JBRedeemParamsData calldata _data)
     external
     view
     override
@@ -515,7 +511,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     view
     returns (
       address jbEthTerminalAddress,
-      uint256 bluntFee,
+      uint256 fee,
       JBFundingCycleData memory data,
       JBFundingCycleMetadata memory metadata,
       JBGroupedSplits[] memory splits,
@@ -550,7 +546,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     delete metadata.dataSource;
 
     // Calculate BF fee
-    bluntFee = _calculateFee(totalContributions);
+    fee = _calculateFee(totalContributions);
 
     /// Format bluntSplits
     JBSplit[] memory bluntSplits = new JBSplit[](1);
@@ -579,7 +575,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     fundAccessConstraints[0] = JBFundAccessConstraints({
       terminal: jbEthTerminal,
       token: ETH,
-      distributionLimit: bluntFee,
+      distributionLimit: fee,
       distributionLimitCurrency: 1,
       overflowAllowance: 0,
       overflowAllowanceCurrency: 0
@@ -662,19 +658,19 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   //*********************************************************************//
 
   /**
-    * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-    * by `operator` from `from`, this function is called.
-    *
-    * It must return its Solidity selector to confirm the token transfer.
-    * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-    *
-    * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
-    */
+   * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+   * by `operator` from `from`, this function is called.
+   *
+   * It must return its Solidity selector to confirm the token transfer.
+   * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
+   *
+   * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+   */
   function onERC721Received(
-      address,
-      address,
-      uint256,
-      bytes calldata
+    address,
+    address,
+    uint256,
+    bytes calldata
   ) external pure override returns (bytes4) {
     return this.onERC721Received.selector;
   }
