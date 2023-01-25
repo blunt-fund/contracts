@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import './interfaces/IBluntDelegate.sol';
+import '@paulrberg/contracts/math/PRBMath.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPrices.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBTokens.sol';
