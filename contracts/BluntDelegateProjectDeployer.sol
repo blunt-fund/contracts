@@ -239,10 +239,10 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
         dataSource: _delegate, // The delegate is the data source.
         metadata: 0 
       }),
-      _launchProjectData.mustStartAtOrAfter
+      _launchProjectData.mustStartAtOrAfter,
       new JBGroupedSplits[](0),
       new JBFundAccessConstraints[](0),
-      _launchProjectData.terminals
+      _launchProjectData.terminals,
       _launchProjectData.memo
     );
   }

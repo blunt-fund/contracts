@@ -38,7 +38,7 @@ import {DSTestPlus} from 'solmate/test/utils/DSTestPlus.sol';
 import 'forge-std/console2.sol';
 
 import './AccessJBLib.sol';
-import '../structs/JBPayDataSourceFundingCycleMetadata.sol'; 
+import '../structs/JBPayDataSourceFundingCycleMetadata.sol';
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
 import 'contracts/interfaces/IPriceFeed.sol';
@@ -362,14 +362,19 @@ contract BluntSetup is DSTestPlus {
       '' // memo
     );
   }
-  
+
   /**
     @notice
     Helper function to calculate blunt fee based on raised amount.
   */
   function _calculateFee(uint256 raised) internal view returns (uint256 fee) {
     unchecked {
-      uint256 raisedUsd = _priceFeed.getQuote(uint128(raised), address(uint160(uint256(keccak256('eth')))), address(0), 30 minutes);
+      uint256 raisedUsd = _priceFeed.getQuote(
+        uint128(raised),
+        address(uint160(uint256(keccak256('eth')))),
+        address(0),
+        30 minutes
+      );
       uint256 k;
       if (raisedUsd < _lowerFundraiseBoundary) {
         k = _maxK;

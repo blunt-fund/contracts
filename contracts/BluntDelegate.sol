@@ -14,7 +14,6 @@ import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 /// @author jango
 /// @notice Permissionless funding rounds with target, hardcap, deadline and a set of pre-defined rules.
 contract BluntDelegate is IBluntDelegate {
-
   //*********************************************************************//
   // --------------------------- custom errors ------------------------- //
   //*********************************************************************//
@@ -207,7 +206,7 @@ contract BluntDelegate is IBluntDelegate {
         hardcap_ = PRBMath.muldiv(
           hardcap_,
           _terminal.decimals,
-          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals),
+          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals)
         );
       }
       if (_terminal.store().balanceOf(msg.sender, _data.projectId) > hardcap_) revert CAP_REACHED();
@@ -228,7 +227,7 @@ contract BluntDelegate is IBluntDelegate {
     // Make sure the deadline has passed if one was set.
     if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
 
-    // Make sure the target has been reached.    
+    // Make sure the target has been reached.
     if (!isTargetReached()) revert TARGET_NOT_REACHED();
 
     /// Get reconfigure data.
@@ -335,16 +334,12 @@ contract BluntDelegate is IBluntDelegate {
     Returns info related to the round.
   */
   function getRoundInfo() external view override returns (RoundInfo memory) {
-
     /// Get a reference to the terminal.
     IJBPaymentTerminal _terminal = directory.primaryTerminalOf(projectId, JBTokens.ETH);
 
     return
       RoundInfo(
-        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(
-          _terminal,
-          _data.projectId
-        ),
+        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, _data.projectId),
         target,
         hardcap,
         projectOwner,
@@ -369,7 +364,7 @@ contract BluntDelegate is IBluntDelegate {
         target_ = PRBMath.muldiv(
           target_,
           _terminal.decimals,
-          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals),
+          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals)
         );
       }
     }
@@ -444,7 +439,7 @@ contract BluntDelegate is IBluntDelegate {
     splits = new JBGroupedSplits[](1);
     splits[0] = JBGroupedSplits(1, feeSplits); // Payout distribution
 
-    // Format the fund access constraints. 
+    // Format the fund access constraints.
     fundAccessConstraints = new JBFundAccessConstraints[](1);
     fundAccessConstraints[0] = JBFundAccessConstraints({
       terminal: jbEthTerminal,
