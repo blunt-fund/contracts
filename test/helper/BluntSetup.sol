@@ -41,7 +41,6 @@ import './AccessJBLib.sol';
 import '../structs/JBPayDataSourceFundingCycleMetadata.sol';
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
-import 'contracts/interfaces/IPriceFeed.sol';
 import '../mocks/PriceFeedMock.sol';
 import '../mocks/ReceiverMock.sol';
 
@@ -68,14 +67,12 @@ contract BluntSetup is DSTestPlus {
   string internal _tokenSymbol = 'SYMBOL';
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
-  bool internal _clone = false;
   uint256 internal _maxK = 350;
   uint256 internal _minK = 150;
   uint256 internal _upperFundraiseBoundary = 2e13;
   uint256 internal _lowerFundraiseBoundary = 1e11;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
-  IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
   ReceiverMock internal _receiver;
 
   JBOperatorStore internal _jbOperatorStore;
@@ -310,12 +307,10 @@ contract BluntSetup is DSTestPlus {
     });
 
     deployBluntDelegateData = DeployBluntDelegateData(
-      _jbDirectory,
       _bluntProjectOwner,
       _hardcap,
       _target,
-      _afterRoundReservedRate,
-      _afterRoundSplits,
+      7 days,
       _isTargetUsd,
       _isHardcapUsd
     );
@@ -325,39 +320,7 @@ contract BluntSetup is DSTestPlus {
 
     launchProjectData = JBLaunchProjectData(
       JBProjectMetadata({content: '', domain: 0}),
-      JBFundingCycleData({
-        duration: 7 days,
-        weight: 1e15, // 0.001 tokens per ETH contributed
-        discountRate: 0,
-        ballot: IJBFundingCycleBallot(address(0))
-      }),
-      JBFundingCycleMetadata({
-        global: JBGlobalFundingCycleMetadata({
-          allowSetTerminals: false,
-          allowSetController: false,
-          pauseTransfers: false
-        }),
-        reservedRate: 0,
-        redemptionRate: 0,
-        ballotRedemptionRate: 0,
-        pausePay: false,
-        pauseDistributions: false,
-        pauseRedeem: false,
-        pauseBurn: false,
-        allowMinting: false,
-        allowTerminalMigration: false,
-        allowControllerMigration: false,
-        holdFees: false,
-        preferClaimedTokenOverride: false,
-        useTotalOverflowForRedemptions: false,
-        useDataSourceForPay: false,
-        useDataSourceForRedeem: false,
-        dataSource: address(0),
-        metadata: 0
-      }),
       0, // mustStartAtOrAfter
-      new JBGroupedSplits[](0),
-      new JBFundAccessConstraints[](0),
       terminals,
       '' // memo
     );
@@ -367,13 +330,12 @@ contract BluntSetup is DSTestPlus {
     @notice
     Helper function to calculate blunt fee based on raised amount.
   */
-  function _calculateFee(uint256 raised) internal view returns (uint256 fee) {
+  function _calculateFee(uint256 raised, uint256 decimals) internal view returns (uint256 fee) {
     unchecked {
-      uint256 raisedUsd = _priceFeed.getQuote(
-        uint128(raised),
-        address(uint160(uint256(keccak256('eth')))),
-        address(0),
-        30 minutes
+      uint256 raisedUsd = PRBMath.mulDiv(
+        raised,
+        _jbPrices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, decimals),
+        decimals
       );
       uint256 k;
       if (raisedUsd < _lowerFundraiseBoundary) {

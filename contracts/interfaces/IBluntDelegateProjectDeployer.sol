@@ -1,31 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBDirectory.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBProjects.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPrices.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/structs/JBProjectMetadata.sol';
 import './IBluntDelegateDeployer.sol';
-import './IBluntDelegateCloner.sol';
 import '../structs/DeployBluntDelegateData.sol';
 import '../structs/JBLaunchProjectData.sol';
 
 interface IBluntDelegateProjectDeployer {
+  function directory() external view returns (IJBDirectory);
+
   function controller() external view returns (IJBController);
+
+  function prices() external view returns (IJBPrices);
 
   function delegateDeployer() external view returns (IBluntDelegateDeployer);
 
-  function delegateCloner() external view returns (IBluntDelegateCloner);
-
   function launchProjectFor(
     DeployBluntDelegateData memory _deployBluntDelegateData,
-    JBLaunchProjectData memory _launchProjectData,
-    bool _clone
+    JBLaunchProjectData memory _launchProjectData
   ) external returns (uint256 projectId);
 
-  function _setDelegates(
-    IBluntDelegateDeployer newDelegateDeployer_,
-    IBluntDelegateCloner newDelegateCloner_
-  ) external;
+  function _setDelegates(IBluntDelegateDeployer newDelegateDeployer_) external;
 
   function _setFees(
     uint16 maxK_,

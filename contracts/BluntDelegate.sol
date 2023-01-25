@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import './interfaces/IBluntDelegate.sol';
-import '@paulrberg/contracts/math/PRBMath.sol';
+import '@jbx-protocol/juice-contracts-v3/lib/prb-math/contracts/PRBMath.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutRedemptionPaymentTerminal.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPrices.sol';
@@ -61,7 +61,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The contract that exposes price feeds.
   */
-  IJBPrices public immutable override prices;
+  IJBPrices private immutable prices;
 
   /**
     @notice
@@ -145,6 +145,7 @@ contract BluntDelegate is IBluntDelegate {
     DeployBluntDelegateData memory _deployBluntDelegateData
   ) {
     feeProjectId = _deployBluntDelegateDeployerData.feeProjectId;
+    projectId = _deployBluntDelegateDeployerData.projectId;
     directory = _deployBluntDelegateDeployerData.directory;
     controller = _deployBluntDelegateDeployerData.controller;
     prices = _deployBluntDelegateDeployerData.prices;
@@ -153,7 +154,6 @@ contract BluntDelegate is IBluntDelegate {
     UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.upperFundraiseBoundary;
     LOWER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.lowerFundraiseBoundary;
 
-    projectId = _deployBluntDelegateData.projectId;
     projectOwner = _deployBluntDelegateData.projectOwner;
     target = _deployBluntDelegateData.target;
     isTargetUsd = _deployBluntDelegateData.isTargetUsd;
@@ -161,13 +161,13 @@ contract BluntDelegate is IBluntDelegate {
     isHardcapUsd = _deployBluntDelegateData.isHardcapUsd;
 
     /// Set deadline based on round duration
-    if (_deployBluntDelegateDeployerData.duration != 0)
+    if (_deployBluntDelegateData.duration != 0)
       deadline = uint40(block.timestamp + _deployBluntDelegateData.duration);
 
     emit RoundCreated(
       _deployBluntDelegateData,
       _deployBluntDelegateDeployerData.projectId,
-      _deployBluntDelegateDeployerData.duration
+      _deployBluntDelegateData.duration
     );
   }
 
@@ -200,17 +200,24 @@ contract BluntDelegate is IBluntDelegate {
     /// Get a reference to the terminal.
     IJBPayoutRedemptionPaymentTerminal _terminal = IJBPayoutRedemptionPaymentTerminal(msg.sender);
 
+    /// Get the amount of decimals for the terminal.
+    uint256 _decimals = _terminal.decimalsForToken(JBTokens.ETH);
+
     /// Make sure the hardhat hasn't been reached.
     if (hardcap != 0) {
+      uint256 _hardcap = hardcap;
       if (isHardcapUsd) {
         // Convert the hardcap to ETH.
-        hardcap = PRBMath.muldiv(
+        _hardcap = PRBMath.mulDiv(
           hardcap,
-          _terminal.decimals,
-          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals)
+          _decimals,
+          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _decimals)
         );
       }
-      if (_terminal.store().balanceOf(msg.sender, _data.projectId) > hardcap) revert CAP_REACHED();
+      if (
+        _terminal.store().balanceOf(IJBSingleTokenPaymentTerminal(msg.sender), _data.projectId) >
+        _hardcap
+      ) revert CAP_REACHED();
     }
   }
 
@@ -233,7 +240,7 @@ contract BluntDelegate is IBluntDelegate {
 
     /// Get reconfigure data.
     (
-      IJBPayoutTerminal payoutTerminal,
+      address terminal,
       uint256 fee,
       JBFundingCycleData memory data,
       JBFundingCycleMetadata memory metadata,
@@ -253,7 +260,7 @@ contract BluntDelegate is IBluntDelegate {
     );
 
     // Distribute payout fee to the fee project.
-    payoutTerminal.distributePayoutsOf({
+    IJBPayoutTerminal(terminal).distributePayoutsOf({
       _projectId: projectId,
       _amount: fee,
       _currency: JBCurrencies.ETH,
@@ -330,17 +337,33 @@ contract BluntDelegate is IBluntDelegate {
     return (_data.weight, _data.memo, allocations);
   }
 
+  function redeemParams(JBRedeemParamsData calldata _data)
+    external
+    pure
+    override
+    returns (
+      uint256 reclaimAmount,
+      string memory memo,
+      JBRedemptionDelegateAllocation[] memory delegateAllocations
+    )
+  {
+    return (_data.reclaimAmount.value, _data.memo, new JBRedemptionDelegateAllocation[](0));
+  }
+
   /**
     @notice
     Returns info related to the round.
   */
   function getRoundInfo() external view override returns (RoundInfo memory) {
     /// Get a reference to the terminal.
-    IJBPaymentTerminal _terminal = directory.primaryTerminalOf(projectId, JBTokens.ETH);
+    address _terminal = address(directory.primaryTerminalOf(projectId, JBTokens.ETH));
 
     return
       RoundInfo(
-        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, projectId),
+        IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(
+          IJBSingleTokenPaymentTerminal(_terminal),
+          projectId
+        ),
         target,
         hardcap,
         projectOwner,
@@ -357,21 +380,26 @@ contract BluntDelegate is IBluntDelegate {
   */
   function isTargetReached() public view override returns (bool) {
     /// Get a reference to the terminal.
-    IJBPaymentTerminal _terminal = directory.primaryTerminalOf(projectId, JBTokens.ETH);
+    address _terminal = address(directory.primaryTerminalOf(projectId, JBTokens.ETH));
+
+    /// Get the amount of decimals for the terminal.
+    uint256 _decimals = IJBPaymentTerminal(_terminal).decimalsForToken(JBTokens.ETH);
 
     uint256 target_ = target;
     if (target_ != 0) {
       if (isTargetUsd) {
-        target_ = PRBMath.muldiv(
+        target_ = PRBMath.mulDiv(
           target_,
-          _terminal.decimals,
-          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _terminal.decimals)
+          _decimals,
+          prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, _decimals)
         );
       }
     }
     return
-      IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(_terminal, projectId) >
-      target_;
+      IJBPayoutRedemptionPaymentTerminal(_terminal).store().balanceOf(
+        IJBSingleTokenPaymentTerminal(_terminal),
+        projectId
+      ) > target_;
   }
 
   //*********************************************************************//
@@ -386,7 +414,7 @@ contract BluntDelegate is IBluntDelegate {
     private
     view
     returns (
-      IJBPayoutTerminal terminal,
+      address terminal,
       uint256 fee,
       JBFundingCycleData memory data,
       JBFundingCycleMetadata memory metadata,
@@ -417,12 +445,16 @@ contract BluntDelegate is IBluntDelegate {
     delete metadata.dataSource;
 
     // Get project's ETH terminal.
-    terminal = IJBPayoutRedemptionPaymentTerminal(
-      directory.primaryTerminalOf(projectId, JBTokens.ETH)
-    );
+    terminal = address(directory.primaryTerminalOf(projectId, JBTokens.ETH));
 
     // Calculate the fee to take.
-    fee = _calculateFee(terminal.store().balanceOf(terminal, projectId), terminal.decimals());
+    fee = _calculateFee(
+      IJBPayoutRedemptionPaymentTerminal(terminal).store().balanceOf(
+        IJBSingleTokenPaymentTerminal(terminal),
+        projectId
+      ),
+      IJBPaymentTerminal(terminal).decimalsForToken(JBTokens.ETH)
+    );
 
     /// Format fee split.
     JBSplit[] memory feeSplits = new JBSplit[](1);
@@ -443,7 +475,7 @@ contract BluntDelegate is IBluntDelegate {
     // Format the fund access constraints.
     fundAccessConstraints = new JBFundAccessConstraints[](1);
     fundAccessConstraints[0] = JBFundAccessConstraints({
-      terminal: terminal,
+      terminal: IJBPaymentTerminal(terminal),
       token: JBTokens.ETH,
       distributionLimit: fee,
       distributionLimitCurrency: JBCurrencies.ETH,
@@ -458,7 +490,7 @@ contract BluntDelegate is IBluntDelegate {
   */
   function _calculateFee(uint256 raised, uint256 decimals) private view returns (uint256 fee) {
     unchecked {
-      uint256 raisedUsd = PRBMath.muldiv(
+      uint256 raisedUsd = PRBMath.mulDiv(
         raised,
         prices.priceFor(JBCurrencies.USD, JBCurrencies.ETH, decimals),
         decimals

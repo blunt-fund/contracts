@@ -8,12 +8,7 @@ import '../structs/DeployBluntDelegateDeployerData.sol';
 import '../structs/DeployBluntDelegateData.sol';
 import '../structs/RoundInfo.sol';
 
-interface IBluntDelegate is
-  IJBFundingCycleDataSource,
-  IJBPayDelegate,
-  IJBRedemptionDelegate,
-  IERC721Receiver
-{
+interface IBluntDelegate is IJBFundingCycleDataSource, IJBPayDelegate, IERC721Receiver {
   function getRoundInfo() external view returns (RoundInfo memory roundInfo);
 
   function closeRound() external;
