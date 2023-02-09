@@ -5,7 +5,7 @@ import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol'
 
 struct DeployBluntDelegateDeployerData {
   IJBController controller;
-  uint48 bluntProjectId;
+  uint48 feeProjectId;
   uint48 projectId;
   uint40 duration;
   address ethAddress;

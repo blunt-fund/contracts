@@ -78,7 +78,7 @@ contract BluntDelegateTest is BluntSetup {
 
   function testConstructor() public {
     assertEq(bluntDelegate.projectId(), projectId);
-    assertEq(bluntDelegate.bluntProjectId(), _bluntProjectId);
+    assertEq(bluntDelegate.feeProjectId(), _bluntProjectId);
     assertEq(bluntDelegate.MAX_K(), _maxK);
     assertEq(bluntDelegate.MIN_K(), _minK);
     assertEq(bluntDelegate.UPPER_FUNDRAISE_BOUNDARY_USD(), _upperFundraiseBoundary);
@@ -695,7 +695,7 @@ contract BluntDelegateTest is BluntSetup {
     hevm.prank(_bluntProjectOwner);
     bluntDelegate.closeRound();
 
-    hevm.expectRevert(bytes4(keccak256('INVALID_PAYMENT_EVENT()')));
+    hevm.expectRevert(bytes4(keccak256('ROUND_ENDED()')));
     _jbETHPaymentTerminal.pay{value: _target}(
       projectId,
       0,
