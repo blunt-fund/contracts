@@ -468,18 +468,19 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     Returns info related to round.
   */
   function getRoundInfo() external view override returns (RoundInfo memory) {
-    return RoundInfo(
-      totalContributions,
-      target,
-      hardcap,
-      projectOwner,
-      afterRoundReservedRate,
-      afterRoundSplits,
-      isRoundClosed,
-      deadline,
-      isTargetUsd,
-      isHardcapUsd
-    );
+    return
+      RoundInfo(
+        totalContributions,
+        target,
+        hardcap,
+        projectOwner,
+        afterRoundReservedRate,
+        afterRoundSplits,
+        isRoundClosed,
+        deadline,
+        isTargetUsd,
+        isHardcapUsd
+      );
   }
 
   /**
@@ -656,19 +657,19 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   //*********************************************************************//
 
   /**
-    * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-    * by `operator` from `from`, this function is called.
-    *
-    * It must return its Solidity selector to confirm the token transfer.
-    * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-    *
-    * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
-    */
+   * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+   * by `operator` from `from`, this function is called.
+   *
+   * It must return its Solidity selector to confirm the token transfer.
+   * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
+   *
+   * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+   */
   function onERC721Received(
-      address,
-      address,
-      uint256,
-      bytes calldata
+    address,
+    address,
+    uint256,
+    bytes calldata
   ) external pure override returns (bytes4) {
     return this.onERC721Received.selector;
   }

@@ -451,18 +451,19 @@ contract BluntDelegate is IBluntDelegate {
     Returns info related to round.
   */
   function getRoundInfo() external view override returns (RoundInfo memory) {
-    return RoundInfo(
-      totalContributions,
-      target,
-      hardcap,
-      projectOwner,
-      afterRoundReservedRate,
-      afterRoundSplits,
-      isRoundClosed,
-      deadline,
-      isTargetUsd,
-      isHardcapUsd
-    );
+    return
+      RoundInfo(
+        totalContributions,
+        target,
+        hardcap,
+        projectOwner,
+        afterRoundReservedRate,
+        afterRoundSplits,
+        isRoundClosed,
+        deadline,
+        isTargetUsd,
+        isHardcapUsd
+      );
   }
 
   /**
