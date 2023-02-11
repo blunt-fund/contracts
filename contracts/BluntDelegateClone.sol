@@ -40,7 +40,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /** 
     @notice 
-    The ETH token address in Juicebox
+    The ETH token address in Juicebox. See `JBConstants`
   */
   address private constant ETH = address(0x000000000000000000000000000000000000EEEe);
 
@@ -56,23 +56,32 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   */
   IJBDirectory private directory;
 
+  /**
+    @notice
+    The controller with which new projects should be deployed.
+  */
   IJBController private controller;
 
   /**
     @notice
-    The ID of the Blunt Finance project.
+    The ID of the JB project that collects fees.
   */
-  uint48 public bluntProjectId;
+  uint48 public feeProjectId;
 
   /**
     @notice
-    The ID of the project.
+    The ID of the project conducting a round.
   */
   uint48 public projectId;
 
   /**
     @notice
     Constants used to calculate Blunt Finance fee
+
+    @dev MAX_K: The max percentage of the total contributions that can be taken as a fee
+    @dev MIN_K: The min percentage of the total contributions that can be taken as a fee
+    @dev UPPER_FUNDRAISE_BOUNDARY_USD: The upper boundary of the fundraising in USD, after which the percentage is fixed at MIN_K
+    @dev LOWER_FUNDRAISE_BOUNDARY_USD: The lower boundary of the fundraising in USD, before which the percentage is fixed at MAX_K
   */
   uint16 public MAX_K;
   uint16 public MIN_K;
@@ -93,22 +102,22 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /** 
     @notice
-    The owner of the project once the blunt round is concluded successfully.
+    The owner of the project if the round is concluded successfully.
   */
   address private projectOwner;
 
   /** 
     @notice
-    The minimum amount of contributions while this data source is in effect.
-    When `isTargetUsd` is enabled, it is a 6 point decimal number, else a wei amount.
+    The minimum amount of contributions to deem the round successful.
+    When `isTargetUsd` is enabled it is a 6 point decimal number, else 18.
     @dev uint88 is sufficient for up to ~300M ETH
   */
   uint88 private target;
 
   /** 
     @notice
-    The maximum amount of contributions while this data source is in effect. 
-    When `isHardcapUsd` is enabled, it is a 6 point decimal number, else a wei amount.
+    The maximum amount of contributions while the round is in effect. 
+    When `isHardcapUsd` is enabled it is a 6 point decimal number, else 18.
     @dev uint88 is sufficient for up to ~300M ETH
   */
   uint88 private hardcap;
@@ -121,13 +130,13 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    True if a target is expressed in USD
+    True if a target is expressed in USD. False if ETH.
   */
   bool private isTargetUsd;
 
   /**
     @notice
-    True if a hardcap is expressed in USD
+    True if a hardcap is expressed in USD. False if ETH.
   */
   bool private isHardcapUsd;
 
@@ -143,7 +152,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    Deadline of the round
+    The timestamp after which the round can be closed successfully. If zero, the round can be closed anytime.
   */
   uint40 private deadline;
 
@@ -195,7 +204,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     MIN_K = _deployBluntDelegateDeployerData.minK;
     UPPER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.upperFundraiseBoundary;
     LOWER_FUNDRAISE_BOUNDARY_USD = _deployBluntDelegateDeployerData.lowerFundraiseBoundary;
-    bluntProjectId = _deployBluntDelegateDeployerData.bluntProjectId;
+    feeProjectId = _deployBluntDelegateDeployerData.feeProjectId;
     projectId = _deployBluntDelegateDeployerData.projectId;
     ethAddress = _deployBluntDelegateDeployerData.ethAddress;
     usdcAddress = _deployBluntDelegateDeployerData.usdcAddress;
@@ -247,22 +256,26 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     /// Require that
     /// - The caller is a terminal of the project
     /// - The call is being made on behalf of an interaction with the correct project
-    /// - The blunt round hasn't been closed
     if (
       !directory.isTerminalOf(projectId, IJBPaymentTerminal(msg.sender)) ||
-      _data.projectId != projectId ||
-      isRoundClosed
+      _data.projectId != projectId
     ) revert INVALID_PAYMENT_EVENT();
 
-    /// Require that the funding cycle related to the round hasn't ended
-    if (deadline != 0 && block.timestamp > deadline) revert ROUND_ENDED();
+    /// Make sure the round hasn't ended.
+    if (isRoundClosed || (deadline != 0 && block.timestamp > deadline)) revert ROUND_ENDED();
 
     /// Update totalContributions and contributions with amount paid
     if (_data.amount.value > type(uint208).max) revert CAP_REACHED();
     totalContributions += uint208(_data.amount.value);
 
     /// Revert if `totalContributions` exceeds `hardcap`
-    _hardcapCheck();
+    uint256 hardcap_ = hardcap;
+    if (hardcap_ != 0) {
+      if (isHardcapUsd) {
+        hardcap_ = priceFeed.getQuote(uint128(hardcap_), usdcAddress, ethAddress, 30 minutes);
+      }
+      if (totalContributions > hardcap_) revert CAP_REACHED();
+    }
 
     /// Cannot overflow as totalContributions would overflow first
     unchecked {
@@ -305,11 +318,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice 
-    Close blunt round if target has been reached:
-    - Pay BF fee, 
-    - Reconfigure next FC,
-    - Transfer project NFT to projectOwner.
-    If called when totalContributions hasn't reached the target, disables payments and keeps full redemptions enabled.
+    Close round if target has been reached. If called when totalContributions hasn't reached the target, 
+    disable payments and keep full redemptions enabled.
 
     @dev 
     Can only be called once by the appointed project owner.
@@ -324,8 +334,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
 
       (
-        address jbEthTerminalAddress,
-        uint256 bluntFee,
+        address terminal,
+        uint256 fee,
         JBFundingCycleData memory data,
         JBFundingCycleMetadata memory metadata,
         JBGroupedSplits[] memory splits,
@@ -345,10 +355,10 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
       // Distribute payout fee to Blunt Finance
       string memory projectIdString = _toString(projectId);
-      IJBPayoutTerminal(jbEthTerminalAddress).distributePayoutsOf({
+      IJBPayoutTerminal(terminal).distributePayoutsOf({
         _projectId: projectId,
-        _amount: bluntFee,
-        _currency: 1,
+        _amount: fee,
+        _currency: 1, // JBCurrencies.ETH
         _token: ETH,
         _minReturnedTokens: 0,
         _memo: string(
@@ -457,19 +467,20 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @notice
     Returns info related to round.
   */
-  function getRoundInfo() external view override returns (RoundInfo memory roundInfo) {
-    roundInfo = RoundInfo(
-      totalContributions,
-      target,
-      hardcap,
-      projectOwner,
-      afterRoundReservedRate,
-      afterRoundSplits,
-      isRoundClosed,
-      deadline,
-      isTargetUsd,
-      isHardcapUsd
-    );
+  function getRoundInfo() external view override returns (RoundInfo memory) {
+    return
+      RoundInfo(
+        totalContributions,
+        target,
+        hardcap,
+        projectOwner,
+        afterRoundReservedRate,
+        afterRoundSplits,
+        isRoundClosed,
+        deadline,
+        isTargetUsd,
+        isHardcapUsd
+      );
   }
 
   /**
@@ -492,30 +503,14 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    Revert if total contributions received surpass the round hardcap.
-    Used in `didPay`
-  */
-  function _hardcapCheck() private view {
-    uint256 hardcap_ = hardcap;
-
-    if (hardcap_ != 0) {
-      if (isHardcapUsd) {
-        hardcap_ = priceFeed.getQuote(uint128(hardcap_), usdcAddress, ethAddress, 30 minutes);
-      }
-      if (totalContributions > hardcap_) revert CAP_REACHED();
-    }
-  }
-
-  /**
-    @notice
     Format data to reconfig project and pay Blunt Finance fee
   */
   function _formatReconfigData()
     private
     view
     returns (
-      address jbEthTerminalAddress,
-      uint256 bluntFee,
+      address terminal,
+      uint256 fee,
       JBFundingCycleData memory data,
       JBFundingCycleMetadata memory metadata,
       JBGroupedSplits[] memory splits,
@@ -534,10 +529,11 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     /// Get current funding cycle metadata
     (, metadata) = controller.currentFundingCycleOf(projectId);
     /// Set reservedRate from `afterRoundReservedRate`
-    metadata.reservedRate = afterRoundReservedRate; // TODO: Make this optional
+    metadata.reservedRate = afterRoundReservedRate;
     /// Disable redemptions
     metadata.pauseRedeem = true;
     delete metadata.redemptionRate;
+    delete metadata.ballotRedemptionRate;
     /// Enable transfers
     delete metadata.global.pauseTransfers;
     /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
@@ -550,15 +546,15 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     delete metadata.dataSource;
 
     // Calculate BF fee
-    bluntFee = _calculateFee(totalContributions);
+    fee = _calculateFee(totalContributions);
 
-    /// Format bluntSplits
-    JBSplit[] memory bluntSplits = new JBSplit[](1);
-    bluntSplits[0] = JBSplit({
+    /// Format fee splits
+    JBSplit[] memory feeSplits = new JBSplit[](1);
+    feeSplits[0] = JBSplit({
       preferClaimed: false,
       preferAddToBalance: false,
-      percent: 1_000_000_000,
-      projectId: bluntProjectId,
+      percent: 1_000_000_000, // JBConstants.SPLITS_TOTAL_PERCENT
+      projectId: feeProjectId,
       beneficiary: payable(projectOwner),
       lockedUntil: 0,
       allocator: IJBSplitAllocator(address(0))
@@ -566,21 +562,20 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
     // Format splits
     splits = new JBGroupedSplits[](2);
-    splits[0] = JBGroupedSplits(1, bluntSplits); // Payout distribution
-    // TODO: Make this optional
+    splits[0] = JBGroupedSplits(1, feeSplits); // Payout distribution
     splits[1] = JBGroupedSplits(2, afterRoundSplits); // Reserved rate
 
     // Get JB ETH terminal
     IJBPaymentTerminal jbEthTerminal = directory.primaryTerminalOf(projectId, ETH);
-    jbEthTerminalAddress = address(jbEthTerminal);
+    terminal = address(jbEthTerminal);
 
     // Format fundAccessConstraints
     fundAccessConstraints = new JBFundAccessConstraints[](1);
     fundAccessConstraints[0] = JBFundAccessConstraints({
       terminal: jbEthTerminal,
       token: ETH,
-      distributionLimit: bluntFee,
-      distributionLimitCurrency: 1,
+      distributionLimit: fee,
+      distributionLimitCurrency: 1, // JBCurrencies.ETH
       overflowAllowance: 0,
       overflowAllowanceCurrency: 0
     });
@@ -662,19 +657,19 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   //*********************************************************************//
 
   /**
-    * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-    * by `operator` from `from`, this function is called.
-    *
-    * It must return its Solidity selector to confirm the token transfer.
-    * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-    *
-    * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
-    */
+   * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+   * by `operator` from `from`, this function is called.
+   *
+   * It must return its Solidity selector to confirm the token transfer.
+   * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
+   *
+   * The selector can be obtained in Solidity with `IERC721Receiver.onERC721Received.selector`.
+   */
   function onERC721Received(
-      address,
-      address,
-      uint256,
-      bytes calldata
+    address,
+    address,
+    uint256,
+    bytes calldata
   ) external pure override returns (bytes4) {
     return this.onERC721Received.selector;
   }
