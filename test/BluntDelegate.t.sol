@@ -49,7 +49,6 @@ contract BluntDelegateTest is BluntSetup {
       delegateDeployer,
       delegateCloner,
       _jbController,
-      _jbOperatorStore,
       _bluntProjectId,
       address(uint160(uint256(keccak256('eth')))),
       address(uint160(uint256(keccak256('usdc')))),
