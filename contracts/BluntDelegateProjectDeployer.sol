@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import '@jbx-protocol/juice-contracts-v3/contracts/abstract/JBOperatable.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBOperations.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 
-contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperatable, Ownable {
+contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable {
   //*********************************************************************//
   // ------------------------- custom errors --------------------------- //
   //*********************************************************************//
@@ -80,7 +78,6 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     IBluntDelegateDeployer _delegateDeployer,
     IBluntDelegateCloner _delegateCloner,
     IJBController _controller,
-    IJBOperatorStore _operatorStore,
     uint256 _feeProjectId,
     address _ethAddress,
     address _usdcAddress,
@@ -88,7 +85,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, JBOperat
     uint16 _minK,
     uint56 _upperFundraiseBoundary,
     uint56 _lowerFundraiseBoundary
-  ) JBOperatable(_operatorStore) {
+  ) {
     // Override ownable's default owner due to CREATE3 deployment
     _transferOwnership(deployer);
     

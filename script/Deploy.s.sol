@@ -10,7 +10,6 @@ import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 import {BluntDelegateCloner} from 'contracts/BluntDelegateCloner.sol';
 import 'contracts/interfaces/IBluntDelegateCloner.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBOperatorStore.sol';
 
 contract DeployScript is Script {
   function run() public returns (BluntDelegateProjectDeployer bluntDeployer) {
@@ -23,14 +22,12 @@ contract DeployScript is Script {
 
     // MAINNET PARAMS
     // IJBController jbController = IJBController(___);
-    // IJBOperatorStore jbOperatorStore = IJBOperatorStore(___);
-    // uint256 bluntProjectId = ___;
+    // uint256 bluntProjectId = 433;
     // address ethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     // address usdcAddress = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
     // GOERLI PARAMS
     IJBController jbController = IJBController(0x7Cb86D43B665196BC719b6974D320bf674AFb395);
-    IJBOperatorStore jbOperatorStore = IJBOperatorStore(0x99dB6b517683237dE9C494bbd17861f3608F3585);
     uint256 bluntProjectId = 314;
     address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
     address usdcAddress = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
@@ -55,7 +52,6 @@ contract DeployScript is Script {
             delegateDeployer,
             delegateCloner,
             jbController,
-            jbOperatorStore,
             bluntProjectId,
             ethAddress,
             usdcAddress,
