@@ -956,7 +956,7 @@ contract BluntDelegateTest is BluntSetup {
 
     // Blunt fee logic
     uint256 bluntFee = _calculateFee(totalContributions_);
-    (uint256 distributionLimit, ) = _jbController.distributionLimitOf(
+    (uint256 distributionLimit, ) = _jbController.fundAccessConstraintsStore().distributionLimitOf(
       projectId_,
       _jbFundingCycleStore.latestConfigurationOf(projectId_),
       _jbETHPaymentTerminal,

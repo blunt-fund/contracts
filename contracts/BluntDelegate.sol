@@ -59,7 +59,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The controller with which new projects should be deployed.
   */
-  IJBController private immutable controller;
+  IJBController3_1 private immutable controller;
 
   /**
     @notice

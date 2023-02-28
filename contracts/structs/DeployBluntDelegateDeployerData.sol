@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController3_1.sol';
 
 struct DeployBluntDelegateDeployerData {
-  IJBController controller;
+  IJBController3_1 controller;
   uint48 feeProjectId;
   uint48 projectId;
   uint40 duration;

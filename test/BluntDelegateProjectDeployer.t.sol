@@ -111,7 +111,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     );
     (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
       .currentFundingCycleOf(projectId);
-    (uint256 distributionLimit, ) = _jbController.distributionLimitOf(
+    (uint256 distributionLimit, ) = _jbController.fundAccessConstraintsStore().distributionLimitOf(
       projectId,
       1,
       IJBPaymentTerminal(address(1)),

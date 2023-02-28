@@ -40,7 +40,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     @notice
     JB controller address
   */
-  IJBController public immutable override controller;
+  IJBController3_1 public immutable override controller;
 
   //*********************************************************************//
   // ------------------------ mutable storage -------------------------- //
@@ -77,7 +77,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     address deployer,
     IBluntDelegateDeployer _delegateDeployer,
     IBluntDelegateCloner _delegateCloner,
-    IJBController _controller,
+    IJBController3_1 _controller,
     uint256 _feeProjectId,
     address _ethAddress,
     address _usdcAddress,

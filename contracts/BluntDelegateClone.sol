@@ -60,7 +60,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @notice
     The controller with which new projects should be deployed.
   */
-  IJBController private controller;
+  IJBController3_1 private controller;
 
   /**
     @notice

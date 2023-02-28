@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.16;
 
-import '@jbx-protocol/juice-contracts-v3/contracts/JBController.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/JBController3_1.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBDirectory.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBETHPaymentTerminal.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBERC20PaymentTerminal.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/JBSingleTokenPaymentTerminalStore.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/JBSingleTokenPaymentTerminalStore3_1.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBFundingCycleStore.sol';
+import "@jbx-protocol/juice-contracts-v3/contracts/JBFundAccessConstraintsStore.sol";
 import '@jbx-protocol/juice-contracts-v3/contracts/JBOperatorStore.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBPrices.sol';
 import {JBProjects} from '@jbx-protocol/juice-contracts-v3/contracts/JBProjects.sol';
@@ -85,8 +86,9 @@ contract BluntSetup is DSTestPlus {
   JBFundingCycleStore internal _jbFundingCycleStore;
   JBTokenStore internal _jbTokenStore;
   JBSplitsStore internal _jbSplitsStore;
-  JBController internal _jbController;
-  JBSingleTokenPaymentTerminalStore internal _jbPaymentTerminalStore;
+  JBController3_1 internal _jbController;
+  JBFundAccessConstraintsStore internal _jbFundAccessConstraintsStore;
+  JBSingleTokenPaymentTerminalStore3_1 internal _jbPaymentTerminalStore;
   JBETHPaymentTerminal internal _jbETHPaymentTerminal;
   JBProjectMetadata internal _projectMetadata;
   JBFundingCycleData internal _data;
@@ -138,25 +140,28 @@ contract BluntSetup is DSTestPlus {
     _jbSplitsStore = new JBSplitsStore(_jbOperatorStore, _jbProjects, _jbDirectory);
     hevm.label(address(_jbSplitsStore), 'JBSplitsStore');
 
-    _jbController = new JBController(
+    _jbFundAccessConstraintsStore = new JBFundAccessConstraintsStore(_jbDirectory);
+
+    _jbController = new JBController3_1(
       _jbOperatorStore,
       _jbProjects,
       _jbDirectory,
       _jbFundingCycleStore,
       _jbTokenStore,
-      _jbSplitsStore
+      _jbSplitsStore,
+      _jbFundAccessConstraintsStore
     );
-    hevm.label(address(_jbController), 'JBController');
+    hevm.label(address(_jbController), 'JBController3_1');
 
     hevm.prank(_projectOwner);
     _jbDirectory.setIsAllowedToSetFirstController(address(_jbController), true);
 
-    _jbPaymentTerminalStore = new JBSingleTokenPaymentTerminalStore(
+    _jbPaymentTerminalStore = new JBSingleTokenPaymentTerminalStore3_1(
       _jbDirectory,
       _jbFundingCycleStore,
       _jbPrices
     );
-    hevm.label(address(_jbPaymentTerminalStore), 'JBSingleTokenPaymentTerminalStore');
+    hevm.label(address(_jbPaymentTerminalStore), 'JBSingleTokenPaymentTerminalStore3_1');
 
     _accessJBLib = new AccessJBLib();
 
