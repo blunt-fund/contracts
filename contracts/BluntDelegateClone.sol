@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import './interfaces/IBluntDelegateClone.sol';
 import './interfaces/IPriceFeed.sol';
 import '@openzeppelin-upgradeable/proxy/utils/Initializable.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal3_1.sol';
 
 /// @title Base Blunt Finance data source for Juicebox projects.
 /// @author jacopo <jacopo@slice.so>
@@ -355,13 +355,13 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
       // Distribute payout fee to Blunt Finance
       string memory projectIdString = _toString(projectId);
-      IJBPayoutTerminal(terminal).distributePayoutsOf({
+      IJBPayoutTerminal3_1(terminal).distributePayoutsOf({
         _projectId: projectId,
         _amount: fee,
         _currency: 1, // JBCurrencies.ETH
         _token: ETH,
         _minReturnedTokens: 0,
-        _memo: string(
+        _metadata: 
           abi.encodePacked(
             'Fee from [Project #',
             projectIdString,
@@ -369,7 +369,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
             projectIdString,
             ')'
           )
-        )
       });
 
       /// Transfer project ownership to projectOwner
