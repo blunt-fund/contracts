@@ -517,7 +517,7 @@ contract BluntDelegate is IBluntDelegate {
     delete metadata.redemptionRate;
     delete metadata.ballotRedemptionRate;
     /// Enable transfers
-    delete metadata.global.pauseTransfers;
+    metadata.global.pauseTransfers = false;
     /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
     metadata.pausePay = true;
     /// Ensure distributions are enabled

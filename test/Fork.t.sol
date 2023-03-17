@@ -15,7 +15,7 @@ contract ForkTest is Test {
 
   function testLaunchProject() public {
     string memory MAINNET_RPC_URL = vm.envString("RPC_URL_MAINNET");
-    vm.createSelectFork(MAINNET_RPC_URL, 16728933);
+    vm.createSelectFork(MAINNET_RPC_URL, 16843591);
 
     delegateDeployer = new BluntDelegateDeployer();
     delegateCloner = new BluntDelegateCloner();
