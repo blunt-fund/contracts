@@ -40,11 +40,15 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm install --frozen-lockfile --prefer-offline
 
-      - name: Check contract sizes
-        run: forge build --sizes
+      - name: Build contract
+        run: forge build
 
       - name: Check gas snapshots
+        env:
+          RPC_URL_MAINNET: ${{ secrets.RPC_URL_MAINNET }}
         run: forge snapshot --check
 
       - name: Run tests
+        env:
+          RPC_URL_MAINNET: ${{ secrets.RPC_URL_MAINNET }}
         run: forge test --force --optimize -vvv

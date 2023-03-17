@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import './interfaces/IBluntDelegate.sol';
 import './interfaces/IPriceFeed.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal.sol';
+import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal3_1.sol';
 
 /// @title Base Blunt Finance data source for Juicebox projects.
 /// @author jacopo <jacopo@slice.so>
@@ -59,7 +59,7 @@ contract BluntDelegate is IBluntDelegate {
     @notice
     The controller with which new projects should be deployed.
   */
-  IJBController private immutable controller;
+  IJBController3_1 private immutable controller;
 
   /**
     @notice
@@ -338,13 +338,13 @@ contract BluntDelegate is IBluntDelegate {
 
       // Distribute payout fee to Blunt Finance
       string memory projectIdString = _toString(projectId);
-      IJBPayoutTerminal(terminal).distributePayoutsOf({
+      IJBPayoutTerminal3_1(terminal).distributePayoutsOf({
         _projectId: projectId,
         _amount: fee,
         _currency: 1, // JBCurrencies.ETH
         _token: ETH,
         _minReturnedTokens: 0,
-        _memo: string(
+        _metadata: 
           abi.encodePacked(
             'Fee from [Project #',
             projectIdString,
@@ -352,7 +352,6 @@ contract BluntDelegate is IBluntDelegate {
             projectIdString,
             ')'
           )
-        )
       });
 
       /// Transfer project ownership to projectOwner
@@ -518,7 +517,7 @@ contract BluntDelegate is IBluntDelegate {
     delete metadata.redemptionRate;
     delete metadata.ballotRedemptionRate;
     /// Enable transfers
-    delete metadata.global.pauseTransfers;
+    metadata.global.pauseTransfers = false;
     /// Pause pay, to allow projectOwner to reconfig as needed before re-enabling
     metadata.pausePay = true;
     /// Ensure distributions are enabled
