@@ -13,6 +13,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
   error EXCEEDED_MAX_FEE();
   error INVALID_INPUTS();
   error INVALID_TOKEN_ISSUANCE();
+  error INVALID_SPLITS();
 
   //*********************************************************************//
   // ----------------------- immutable storage ------------------------- //
@@ -88,7 +89,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
   ) {
     // Override ownable's default owner due to CREATE3 deployment
     _transferOwnership(deployer);
-    
+
     delegateDeployer = _delegateDeployer;
     delegateCloner = _delegateCloner;
     controller = _controller;
@@ -121,8 +122,12 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     bool _clone
   ) external override returns (uint256 projectId) {
     // Require weight to be non zero to allow for redemptions
-    if (_launchProjectData.data.weight == 0)
-      revert INVALID_TOKEN_ISSUANCE();
+    if (_launchProjectData.data.weight == 0) revert INVALID_TOKEN_ISSUANCE();
+
+    if (_launchProjectData.groupedSplits.length != 0) {
+      if (_launchProjectData.groupedSplits.length != 1) revert INVALID_SPLITS();
+      if (_launchProjectData.groupedSplits[0].group != 2) revert INVALID_SPLITS();
+    }
 
     // Get the project ID, optimistically knowing it will be one greater than the current count.
     projectId = controller.projects().count() + 1;
@@ -213,19 +218,19 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     controller.launchProjectFor(
       _delegate,
       _launchProjectData.projectMetadata,
-      JBFundingCycleData ({
-        duration: 0, 
+      JBFundingCycleData({
+        duration: 0,
         weight: _launchProjectData.data.weight,
         discountRate: 0,
         ballot: IJBFundingCycleBallot(address(0))
       }),
-      JBFundingCycleMetadata ({
+      JBFundingCycleMetadata({
         global: JBGlobalFundingCycleMetadata({
           allowSetTerminals: false,
           allowSetController: false,
           pauseTransfers: true
         }),
-        reservedRate: 0,
+        reservedRate: _launchProjectData.metadata.reservedRate,
         redemptionRate: JBConstants.MAX_REDEMPTION_RATE,
         ballotRedemptionRate: JBConstants.MAX_REDEMPTION_RATE,
         pausePay: false,
@@ -240,11 +245,11 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
         useTotalOverflowForRedemptions: false,
         useDataSourceForPay: true,
         useDataSourceForRedeem: true,
-        dataSource: _delegate, // The delegate is the data source. 
-        metadata: 0 
+        dataSource: _delegate, // The delegate is the data source.
+        metadata: 0
       }),
       _launchProjectData.mustStartAtOrAfter,
-      new JBGroupedSplits[](0),
+      _launchProjectData.groupedSplits,
       new JBFundAccessConstraints[](0),
       _launchProjectData.terminals,
       _launchProjectData.memo

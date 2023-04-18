@@ -66,7 +66,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     assertEq(owner, metadata.dataSource);
   }
 
-  function testMetadataOverwrite() public {
+  function testLaunchMetadata() public {
     (
       DeployBluntDelegateData memory deployBluntDelegateData,
       JBLaunchProjectData memory launchProjectData
@@ -82,9 +82,9 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       1,
       1
     );
-    JBGroupedSplits[] memory wrongGroupedSplits = new JBGroupedSplits[](1);
-    JBSplit[] memory wrongSplits = new JBSplit[](1);
-    wrongSplits[0] = JBSplit({
+    JBGroupedSplits[] memory groupedSplits = new JBGroupedSplits[](1);
+    JBSplit[] memory spl = new JBSplit[](1);
+    spl[0] = JBSplit({
       preferClaimed: false,
       preferAddToBalance: false,
       percent: 1_000_000_000,
@@ -93,14 +93,15 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
       lockedUntil: 0,
       allocator: IJBSplitAllocator(address(1))
     });
-    wrongGroupedSplits[0] = JBGroupedSplits(2, wrongSplits);
+    groupedSplits[0] = JBGroupedSplits(2, spl);
 
     launchProjectData.metadata.dataSource = address(2);
     launchProjectData.metadata.useDataSourceForPay = false;
     launchProjectData.metadata.useDataSourceForRedeem = false;
+    launchProjectData.metadata.reservedRate = 1_000; // 10%
     launchProjectData.metadata.redemptionRate = 2;
     launchProjectData.metadata.global.pauseTransfers = false;
-    launchProjectData.groupedSplits = wrongGroupedSplits;
+    launchProjectData.groupedSplits = groupedSplits;
     launchProjectData.fundAccessConstraints = wrongConstraints;
     launchProjectData.data.ballot = IJBFundingCycleBallot(address(1));
 
@@ -128,9 +129,11 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     assertBoolEq(metadata.useDataSourceForRedeem, true);
     assertEq(metadata.redemptionRate, JBConstants.MAX_REDEMPTION_RATE);
     assertBoolEq(metadata.global.pauseTransfers, true);
-    assertEq(splits.length, 0);
     assertEq(distributionLimit, 0);
     assertEq(address(fundingCycle.ballot), address(0));
+
+    assertEq(metadata.reservedRate, 1_000);
+    assertEq(splits.length, groupedSplits.length);
   }
 
   function testSetDelegates() public {
@@ -210,5 +213,35 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
     hevm.expectRevert(bytes4(keccak256('INVALID_INPUTS()')));
     bluntDeployer._setFees(maxK_, minK_, upperFundraiseBoundary_, lowerFundraiseBoundary_);
+  }
+
+  function testRevert_invalidSplits() public {
+    (
+      DeployBluntDelegateData memory deployBluntDelegateData,
+      JBLaunchProjectData memory launchProjectData
+    ) = _formatDeployData();
+
+    // Set wrong metadata
+    JBGroupedSplits[] memory wrongGroupedSplits = new JBGroupedSplits[](1);
+    JBSplit[] memory wrongSplits = new JBSplit[](1);
+    wrongSplits[0] = JBSplit({
+      preferClaimed: false,
+      preferAddToBalance: false,
+      percent: 1_000_000_000,
+      projectId: 1,
+      beneficiary: payable(address(1)),
+      lockedUntil: 0,
+      allocator: IJBSplitAllocator(address(1))
+    });
+    wrongGroupedSplits[0] = JBGroupedSplits(1, wrongSplits);
+
+    launchProjectData.groupedSplits = wrongGroupedSplits;
+
+    hevm.expectRevert(bytes4(keccak256('INVALID_SPLITS()')));
+    uint256 projectId = bluntDeployer.launchProjectFor(
+      deployBluntDelegateData,
+      launchProjectData,
+      _clone
+    );
   }
 }

@@ -4,7 +4,6 @@ pragma solidity ^0.8.16;
 import '@jbx-protocol/juice-contracts-v3/contracts/JBController3_1.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBDirectory.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBETHPaymentTerminal3_1.sol';
-import '@jbx-protocol/juice-contracts-v3/contracts/JBERC20PaymentTerminal.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBSingleTokenPaymentTerminalStore3_1.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBFundingCycleStore.sol';
 import "@jbx-protocol/juice-contracts-v3/contracts/JBFundAccessConstraintsStore.sol";
