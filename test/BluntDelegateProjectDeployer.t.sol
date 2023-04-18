@@ -238,7 +238,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     launchProjectData.groupedSplits = wrongGroupedSplits;
 
     hevm.expectRevert(bytes4(keccak256('INVALID_SPLITS()')));
-    uint256 projectId = bluntDeployer.launchProjectFor(
+    bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
       launchProjectData,
       _clone
