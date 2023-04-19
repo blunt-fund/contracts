@@ -354,21 +354,13 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       );
 
       // Distribute payout fee to Blunt Finance
-      string memory projectIdString = _toString(projectId);
       IJBPayoutTerminal3_1(terminal).distributePayoutsOf({
         _projectId: projectId,
         _amount: fee,
         _currency: 1, // JBCurrencies.ETH
         _token: ETH,
         _minReturnedTokens: 0,
-        _metadata: 
-          abi.encodePacked(
-            'Fee from [Project #',
-            projectIdString,
-            '](https://juicebox.money/v2/p/',
-            projectIdString,
-            ')'
-          )
+        _metadata: ''
       });
 
       /// Transfer project ownership to projectOwner
