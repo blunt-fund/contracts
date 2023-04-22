@@ -662,6 +662,7 @@ contract BluntDelegate is IBluntDelegate {
       _interfaceId == type(IERC165).interfaceId ||
       _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
       _interfaceId == type(IJBPayDelegate).interfaceId ||
-      _interfaceId == type(IJBRedemptionDelegate).interfaceId;
+      _interfaceId == type(IJBRedemptionDelegate).interfaceId ||
+      _interfaceId == type(IBluntDelegate).interfaceId;
   }
 }
