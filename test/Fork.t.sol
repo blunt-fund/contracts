@@ -79,8 +79,6 @@ contract ForkTest is Test {
       address(this),
       0,
       0,
-      1000,
-      new JBSplit[](0),
       false,
       false
     );

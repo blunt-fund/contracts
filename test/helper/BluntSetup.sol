@@ -63,7 +63,6 @@ contract BluntSetup is DSTestPlus {
   uint88 internal _target = 1 ether;
   uint40 internal _releaseTimelock = 1;
   uint40 internal _transferTimelock = 2;
-  uint16 internal _afterRoundReservedRate = 1000; // 10%
   uint256 internal _lockPeriod = 2 days;
   string internal _tokenName = 'tokenName';
   string internal _tokenSymbol = 'SYMBOL';
@@ -295,33 +294,11 @@ contract BluntSetup is DSTestPlus {
       JBLaunchProjectData memory launchProjectData
     )
   {
-    JBSplit[] memory _afterRoundSplits = new JBSplit[](2);
-    _afterRoundSplits[0] = JBSplit({
-      preferClaimed: false,
-      preferAddToBalance: false,
-      percent: JBConstants.SPLITS_TOTAL_PERCENT - 1000,
-      projectId: 0,
-      beneficiary: payable(address(0)),
-      lockedUntil: block.timestamp + _lockPeriod,
-      allocator: IJBSplitAllocator(address(0))
-    });
-    _afterRoundSplits[1] = JBSplit({
-      preferClaimed: false,
-      preferAddToBalance: false,
-      percent: 1000,
-      projectId: 0,
-      beneficiary: payable(address(1)),
-      lockedUntil: 0,
-      allocator: IJBSplitAllocator(address(0))
-    });
-
     deployBluntDelegateData = DeployBluntDelegateData(
       _jbDirectory,
       _bluntProjectOwner,
       _hardcap,
       _target,
-      _afterRoundReservedRate,
-      _afterRoundSplits,
       _isTargetUsd,
       _isHardcapUsd
     );
