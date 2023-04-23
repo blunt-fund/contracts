@@ -8,8 +8,6 @@ struct RoundInfo {
   uint256 target;
   uint256 hardcap;
   address projectOwner;
-  uint256 afterRoundReservedRate;
-  JBSplit[] afterRoundSplits;
   bool isRoundClosed;
   uint256 deadline;
   bool isTargetUsd;

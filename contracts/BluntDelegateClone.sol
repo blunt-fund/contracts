@@ -122,12 +122,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   */
   uint88 private hardcap;
 
-  /** 
-    @notice
-    Reserved rate to be set in case of a successful round
-  */
-  uint16 private afterRoundReservedRate;
-
   /**
     @notice
     True if a target is expressed in USD. False if ETH.
@@ -161,12 +155,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     True if the round has been closed 
   */
   bool private isRoundClosed;
-
-  /** 
-    @notice
-    Project metadata splits to be enabled when a successful round is closed.
-  */
-  JBSplit[] private afterRoundSplits;
 
   /**
     @notice
@@ -212,7 +200,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
     directory = _deployBluntDelegateData.directory;
     projectOwner = _deployBluntDelegateData.projectOwner;
-    afterRoundReservedRate = _deployBluntDelegateData.afterRoundReservedRate;
     target = _deployBluntDelegateData.target;
     isTargetUsd = _deployBluntDelegateData.isTargetUsd;
     hardcap = _deployBluntDelegateData.hardcap;
@@ -221,15 +208,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     /// Set deadline based on round duration
     if (_deployBluntDelegateDeployerData.duration != 0)
       deadline = uint40(block.timestamp + _deployBluntDelegateDeployerData.duration);
-
-    /// Store afterRoundSplits
-    for (uint256 i; i < _deployBluntDelegateData.afterRoundSplits.length; ) {
-      afterRoundSplits.push(_deployBluntDelegateData.afterRoundSplits[i]);
-
-      unchecked {
-        ++i;
-      }
-    }
 
     emit RoundCreated(
       _deployBluntDelegateData,
@@ -354,21 +332,13 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       );
 
       // Distribute payout fee to Blunt Finance
-      string memory projectIdString = _toString(projectId);
       IJBPayoutTerminal3_1(terminal).distributePayoutsOf({
         _projectId: projectId,
         _amount: fee,
         _currency: 1, // JBCurrencies.ETH
         _token: ETH,
         _minReturnedTokens: 0,
-        _metadata: 
-          abi.encodePacked(
-            'Fee from [Project #',
-            projectIdString,
-            '](https://juicebox.money/v2/p/',
-            projectIdString,
-            ')'
-          )
+        _metadata: ''
       });
 
       /// Transfer project ownership to projectOwner
@@ -473,8 +443,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
         target,
         hardcap,
         projectOwner,
-        afterRoundReservedRate,
-        afterRoundSplits,
         isRoundClosed,
         deadline,
         isTargetUsd,
@@ -519,7 +487,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     /// Set funding cycle data
     data = JBFundingCycleData({
       duration: 0,
-      weight: 1e24, /// token issuance 1M
+      weight: 0, // inherit from current cycle
       discountRate: 0,
       ballot: IJBFundingCycleBallot(address(0))
     });
@@ -527,8 +495,6 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     /// Edit funding cycle metadata:
     /// Get current funding cycle metadata
     (, metadata) = controller.currentFundingCycleOf(projectId);
-    /// Set reservedRate from `afterRoundReservedRate`
-    metadata.reservedRate = afterRoundReservedRate;
     /// Disable redemptions
     metadata.pauseRedeem = true;
     delete metadata.redemptionRate;
@@ -560,9 +526,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     });
 
     // Format splits
-    splits = new JBGroupedSplits[](2);
+    splits = new JBGroupedSplits[](1);
     splits[0] = JBGroupedSplits(1, feeSplits); // Payout distribution
-    splits[1] = JBGroupedSplits(2, afterRoundSplits); // Reserved rate
 
     // Get JB ETH terminal
     IJBPaymentTerminal jbEthTerminal = directory.primaryTerminalOf(projectId, ETH);
@@ -687,6 +652,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       _interfaceId == type(IERC165).interfaceId ||
       _interfaceId == type(IJBFundingCycleDataSource).interfaceId ||
       _interfaceId == type(IJBPayDelegate).interfaceId ||
-      _interfaceId == type(IJBRedemptionDelegate).interfaceId;
+      _interfaceId == type(IJBRedemptionDelegate).interfaceId ||
+      _interfaceId == type(IBluntDelegate).interfaceId;
   }
 }

@@ -108,13 +108,6 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.target, _target);
     assertEq(roundInfo.hardcap, _hardcap);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
-    assertEq(roundInfo.afterRoundReservedRate, _afterRoundReservedRate);
-    assertBoolEq(roundInfo.afterRoundSplits[0].preferClaimed, false);
-    assertEq(roundInfo.afterRoundSplits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
-    assertEq(roundInfo.afterRoundSplits[0].beneficiary, address(0));
-    assertEq(roundInfo.afterRoundSplits[1].percent, 1000);
-    assertEq(roundInfo.afterRoundSplits[1].beneficiary, address(1));
-    assertApproxEq(roundInfo.afterRoundSplits[0].lockedUntil, block.timestamp + 2 days, 1);
     assertBoolEq(roundInfo.isRoundClosed, false);
     assertEq(roundInfo.deadline, block.timestamp + launchProjectData.data.duration);
     assertBoolEq(roundInfo.isTargetUsd, _isTargetUsd);
@@ -398,21 +391,6 @@ contract BluntDelegateTest is BluntSetup {
     hevm.warp(100);
 
     _successfulRoundAssertions(projectId_, timestamp, totalContributions);
-
-    JBSplit[] memory splits = _jbSplitsStore.splitsOf({
-      _projectId: projectId_,
-      _domain: timestamp,
-      _group: 2
-    });
-    assertEq(splits.length, 2);
-    assertEq(address(splits[0].beneficiary), address(0));
-    assertBoolEq(splits[0].preferClaimed, false);
-    assertEq(splits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
-    assertTrue(splits[0].lockedUntil != 0);
-    assertEq(address(splits[1].beneficiary), address(1));
-    assertBoolEq(splits[1].preferClaimed, false);
-    assertEq(splits[1].percent, 1000);
-    assertEq(splits[1].lockedUntil, 0);
   }
 
   function testSetDeadline() public {
@@ -459,21 +437,6 @@ contract BluntDelegateTest is BluntSetup {
     hevm.warp(7 days + 100);
 
     _successfulRoundAssertions(projectId, timestamp, totalContributions);
-
-    JBSplit[] memory splits = _jbSplitsStore.splitsOf({
-      _projectId: projectId,
-      _domain: timestamp,
-      _group: 2
-    });
-    assertEq(splits.length, 2);
-    assertEq(address(splits[0].beneficiary), address(0));
-    assertBoolEq(splits[0].preferClaimed, false);
-    assertEq(splits[0].percent, JBConstants.SPLITS_TOTAL_PERCENT - 1000);
-    assertTrue(splits[0].lockedUntil != 0);
-    assertEq(address(splits[1].beneficiary), address(1));
-    assertBoolEq(splits[1].preferClaimed, false);
-    assertEq(splits[1].percent, 1000);
-    assertEq(splits[1].lockedUntil, 0);
   }
 
   function testCalculateFee_lowerBoundary(uint256 amount) public {
@@ -862,19 +825,7 @@ contract BluntDelegateTest is BluntSetup {
       DeployBluntDelegateData memory deployBluntDelegateData,
       JBLaunchProjectData memory launchProjectData
     ) = _formatDeployData();
-
-    JBSplit[] memory afterRoundSplits_ = new JBSplit[](1);
-    afterRoundSplits_[0] = JBSplit({
-      preferClaimed: false,
-      preferAddToBalance: false,
-      percent: JBConstants.SPLITS_TOTAL_PERCENT,
-      projectId: 0,
-      beneficiary: payable(address(1)),
-      lockedUntil: 0,
-      allocator: IJBSplitAllocator(address(0))
-    });
-
-    deployBluntDelegateData.afterRoundSplits = afterRoundSplits_;
+    
     launchProjectData.data.duration = 0;
 
     _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
@@ -927,10 +878,9 @@ contract BluntDelegateTest is BluntSetup {
     (fundingCycle, metadata) = _jbController.currentFundingCycleOf(projectId_);
 
     assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
+    assertEq(fundingCycle.weight, _weight);
     assertEq(fundingCycle.discountRate, 0);
     assertEq(address(fundingCycle.ballot), address(0));
-    assertEq(metadata.reservedRate, _afterRoundReservedRate);
     assertBoolEq(metadata.pauseRedeem, true);
     assertEq(metadata.redemptionRate, 0);
     assertBoolEq(metadata.global.pauseTransfers, false);

@@ -9,8 +9,6 @@ struct DeployBluntDelegateData {
   address projectOwner;
   uint88 hardcap;
   uint88 target;
-  uint16 afterRoundReservedRate;
-  JBSplit[] afterRoundSplits;
   bool isTargetUsd;
   bool isHardcapUsd;
 }
