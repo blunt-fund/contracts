@@ -511,7 +511,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     /// Set funding cycle data
     data = JBFundingCycleData({
       duration: 0,
-      weight: 1e24, /// token issuance 1M
+      weight: 0, // inherit from current cycle
       discountRate: 0,
       ballot: IJBFundingCycleBallot(address(0))
     });

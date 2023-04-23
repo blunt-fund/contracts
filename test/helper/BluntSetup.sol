@@ -74,6 +74,7 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _minK = 150;
   uint256 internal _upperFundraiseBoundary = 2e13;
   uint256 internal _lowerFundraiseBoundary = 1e11;
+  uint256 internal _weight = 1e15;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
   IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
@@ -332,7 +333,7 @@ contract BluntSetup is DSTestPlus {
       JBProjectMetadata({content: '', domain: 0}),
       JBFundingCycleData({
         duration: 7 days,
-        weight: 1e15, // 0.001 tokens per ETH contributed
+        weight: _weight, // 0.001 tokens per ETH contributed
         discountRate: 0,
         ballot: IJBFundingCycleBallot(address(0))
       }),

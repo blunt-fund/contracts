@@ -927,7 +927,7 @@ contract BluntDelegateTest is BluntSetup {
     (fundingCycle, metadata) = _jbController.currentFundingCycleOf(projectId_);
 
     assertEq(fundingCycle.duration, 0);
-    assertEq(fundingCycle.weight, 1e24);
+    assertEq(fundingCycle.weight, _weight);
     assertEq(fundingCycle.discountRate, 0);
     assertEq(address(fundingCycle.ballot), address(0));
     assertEq(metadata.reservedRate, _afterRoundReservedRate);
