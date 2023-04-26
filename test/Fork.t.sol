@@ -21,7 +21,7 @@ contract ForkTest is Test {
       address(this),
       delegateCloner,
       IJBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b), // controller3_1
-      433,
+      490,
       0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, // eth
       0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, // usdc
       350, // maxK, 3.5%

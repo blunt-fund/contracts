@@ -19,7 +19,7 @@ contract DeployScript is Script {
 
     // MAINNET PARAMS
     // IJBController3_1 jbController = IJBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b);
-    // uint256 bluntProjectId = 433;
+    // uint256 bluntProjectId = 490;
     // address ethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     // address usdcAddress = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
