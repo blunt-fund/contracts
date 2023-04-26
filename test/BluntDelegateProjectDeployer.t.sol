@@ -3,25 +3,21 @@ pragma solidity 0.8.17;
 
 import './helper/BluntSetup.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
-import 'contracts/BluntDelegateDeployer.sol';
 import 'contracts/BluntDelegateCloner.sol';
 import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 import 'contracts/interfaces/IBluntDelegateCloner.sol';
 
 contract BluntDelegateProjectDeployerTest is BluntSetup {
   BluntDelegateProjectDeployer public bluntDeployer;
-  IBluntDelegateDeployer public delegateDeployer;
   IBluntDelegateCloner public delegateCloner;
 
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    delegateDeployer = new BluntDelegateDeployer();
     delegateCloner = new BluntDelegateCloner();
 
     bluntDeployer = new BluntDelegateProjectDeployer(
       address(this),
-      delegateDeployer,
       delegateCloner,
       _jbController,
       _bluntProjectId,
@@ -42,8 +38,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
-      launchProjectData,
-      _clone
+      launchProjectData
     );
 
     assertEq(projectId, 2);
@@ -57,8 +52,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
-      launchProjectData,
-      _clone
+      launchProjectData
     );
     address owner = _jbProjects.ownerOf(projectId);
     (, JBFundingCycleMetadata memory metadata) = _jbController.currentFundingCycleOf(projectId);
@@ -106,8 +100,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
     uint256 projectId = bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
-      launchProjectData,
-      _clone
+      launchProjectData
     );
     (JBFundingCycle memory fundingCycle, JBFundingCycleMetadata memory metadata) = _jbController
       .currentFundingCycleOf(projectId);
@@ -134,15 +127,12 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
   }
 
   function testSetDelegates() public {
-    assertEq(address(bluntDeployer.delegateDeployer()), address(delegateDeployer));
     assertEq(address(bluntDeployer.delegateCloner()), address(delegateCloner));
 
-    IBluntDelegateDeployer delegateDeployer_ = IBluntDelegateDeployer(address(1));
     IBluntDelegateCloner delegateCloner_ = IBluntDelegateCloner(address(2));
 
-    bluntDeployer._setDelegates(delegateDeployer_, delegateCloner_);
+    bluntDeployer._setDeployer(delegateCloner_);
 
-    assertEq(address(bluntDeployer.delegateDeployer()), address(delegateDeployer_));
     assertEq(address(bluntDeployer.delegateCloner()), address(delegateCloner_));
   }
 
@@ -173,8 +163,7 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
     hevm.startPrank(address(1));
 
     hevm.expectRevert('Ownable: caller is not the owner');
-    bluntDeployer._setDelegates(
-      IBluntDelegateDeployer(address(1)),
+    bluntDeployer._setDeployer(
       IBluntDelegateCloner(address(2))
     );
 
@@ -210,5 +199,26 @@ contract BluntDelegateProjectDeployerTest is BluntSetup {
 
     hevm.expectRevert(bytes4(keccak256('INVALID_INPUTS()')));
     bluntDeployer._setFees(maxK_, minK_, upperFundraiseBoundary_, lowerFundraiseBoundary_);
+  }
+
+  function testRevert_implementationNotInitializable() public {
+    (DeployBluntDelegateData memory deployBluntDelegateData, ) = _formatDeployData();
+    IBluntDelegateClone implementation = IBluntDelegateClone(delegateCloner.implementation());
+
+    DeployBluntDelegateDeployerData memory _deployerData = DeployBluntDelegateDeployerData(
+      _jbController,
+      uint48(_bluntProjectId),
+      2,
+      0,
+      address(1),
+      address(2),
+      uint16(_maxK),
+      uint16(_minK),
+      uint56(_upperFundraiseBoundary),
+      uint56(_lowerFundraiseBoundary)
+    );
+
+    hevm.expectRevert('Initializable: contract is already initialized');
+    implementation.initialize(_deployerData, deployBluntDelegateData);
   }
 }

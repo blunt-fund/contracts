@@ -68,7 +68,6 @@ contract BluntSetup is DSTestPlus {
   string internal _tokenSymbol = 'SYMBOL';
   bool internal _isTargetUsd = false;
   bool internal _isHardcapUsd = false;
-  bool internal _clone = false;
   uint256 internal _maxK = 350;
   uint256 internal _minK = 150;
   uint256 internal _upperFundraiseBoundary = 2e13;

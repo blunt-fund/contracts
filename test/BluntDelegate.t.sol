@@ -3,11 +3,9 @@ pragma solidity 0.8.17;
 
 import './helper/BluntSetup.sol';
 import './mocks/ERC20Mock.sol';
-import 'contracts/BluntDelegate.sol';
-import 'contracts/BluntDelegateDeployer.sol';
+import 'contracts/BluntDelegateClone.sol';
 import 'contracts/BluntDelegateCloner.sol';
 import 'contracts/BluntDelegateProjectDeployer.sol';
-import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 import 'contracts/interfaces/IBluntDelegateCloner.sol';
 
 contract BluntDelegateTest is BluntSetup {
@@ -16,7 +14,7 @@ contract BluntDelegateTest is BluntSetup {
   //*********************************************************************//
 
   BluntDelegateProjectDeployer public bluntDeployer;
-  BluntDelegate public bluntDelegate;
+  BluntDelegateClone public bluntDelegate;
 
   address public constant user = address(69);
   address public constant user2 = address(420);
@@ -41,12 +39,10 @@ contract BluntDelegateTest is BluntSetup {
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    IBluntDelegateDeployer delegateDeployer = new BluntDelegateDeployer();
     IBluntDelegateCloner delegateCloner = new BluntDelegateCloner();
 
     bluntDeployer = new BluntDelegateProjectDeployer(
       address(this),
-      delegateDeployer,
       delegateCloner,
       _jbController,
       _bluntProjectId,
@@ -63,9 +59,9 @@ contract BluntDelegateTest is BluntSetup {
       JBLaunchProjectData memory launchProjectData
     ) = _formatDeployData();
 
-    projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
+    projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
 
-    bluntDelegate = BluntDelegate(_jbProjects.ownerOf(projectId));
+    bluntDelegate = BluntDelegateClone(_jbProjects.ownerOf(projectId));
     hevm.deal(user, 1e30);
     hevm.deal(user2, 1e30);
     hevm.deal(_bluntProjectOwner, 1e30);
@@ -83,7 +79,7 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(bluntDelegate.UPPER_FUNDRAISE_BOUNDARY_USD(), _upperFundraiseBoundary);
     assertEq(bluntDelegate.LOWER_FUNDRAISE_BOUNDARY_USD(), _lowerFundraiseBoundary);
 
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
     RoundInfo memory roundInfo = bluntDelegateAlt_.getRoundInfo();
     assertEq(roundInfo.deadline, 0);
   }
@@ -96,7 +92,7 @@ contract BluntDelegateTest is BluntSetup {
 
     deployBluntDelegateData.projectOwner = address(_receiver);
 
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
   }
 
   function testRoundInfo() public {
@@ -187,7 +183,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testDidPayWithoutDeadline() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
 
     uint256 amount = 1e15;
     uint256 mintedTokens = _jbETHPaymentTerminal.pay{value: amount}(
@@ -290,7 +286,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testDidRedeemWithoutDeadline() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
 
     hevm.startPrank(user);
 
@@ -350,7 +346,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testCloseRoundAtZero_NoTarget() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     hevm.warp(100);
     hevm.prank(_bluntProjectOwner);
@@ -365,7 +361,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testCloseRoundSuccessfully_NoTarget() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     uint256 amount = 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
@@ -394,7 +390,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testSetDeadline() public {
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
 
     RoundInfo memory roundInfo = bluntDelegateAlt_.getRoundInfo();
     assertEq(roundInfo.deadline, 0);
@@ -442,7 +438,7 @@ contract BluntDelegateTest is BluntSetup {
   function testCalculateFee_lowerBoundary(uint256 amount) public {
     hevm.assume(amount < _lowerFundraiseBoundary / 1200000);
     amount *= 1e15;
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
@@ -466,7 +462,7 @@ contract BluntDelegateTest is BluntSetup {
 
   function testCalculateFee_midBoundary() public {
     uint256 amount = (((_lowerFundraiseBoundary + _upperFundraiseBoundary) / 1200000) / 2) * 1e15;
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
@@ -492,7 +488,7 @@ contract BluntDelegateTest is BluntSetup {
   function testCalculateFee_upperBoundary(uint256 amount) public {
     amount = bound(amount, (_upperFundraiseBoundary / 1200000) + 1, 4.2e9);
     amount *= 1e15;
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
@@ -521,7 +517,7 @@ contract BluntDelegateTest is BluntSetup {
       _upperFundraiseBoundary / 1200000
     );
     amount *= 1e15;
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateNoTargetNoCap();
 
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId_,
@@ -572,7 +568,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testIsTargetReachedUsd() public {
-    (uint256 projectId_, BluntDelegate bluntDelegateAlt_) = _createDelegateUsd();
+    (uint256 projectId_, BluntDelegateClone bluntDelegateAlt_) = _createDelegateUsd();
 
     uint128 targetUsd = 1e10;
     uint256 convertedTarget = _priceFeed.getQuote(targetUsd, address(0), address(0), 0);
@@ -622,7 +618,7 @@ contract BluntDelegateTest is BluntSetup {
 
     hevm.expectEmit(false, false, false, true);
     emit RoundCreated(deployBluntDelegateData, 3, launchProjectData.data.duration);
-    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
+    bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
   }
 
   function testEvent_closedRound() public {
@@ -766,7 +762,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_setDeadline_notProjectOwner() public {
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
     uint256 deadline_ = block.timestamp + 1e4;
 
     hevm.expectRevert(bytes4(keccak256('NOT_PROJECT_OWNER()')));
@@ -774,7 +770,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_setDeadline_roundClosed() public {
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
     hevm.startPrank(_bluntProjectOwner);
     uint256 deadline_ = block.timestamp + 1e4;
     bluntDelegateAlt_.closeRound();
@@ -786,7 +782,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_setDeadline_deadlineSet() public {
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
     hevm.startPrank(_bluntProjectOwner);
     uint256 deadline_ = block.timestamp + 1e4;
     bluntDelegateAlt_.setDeadline(deadline_);
@@ -801,7 +797,7 @@ contract BluntDelegateTest is BluntSetup {
   }
 
   function testRevert_setDeadline_invalidDeadline() public {
-    (, BluntDelegate bluntDelegateAlt_) = _createDelegateWithoutDeadline();
+    (, BluntDelegateClone bluntDelegateAlt_) = _createDelegateWithoutDeadline();
     hevm.startPrank(_bluntProjectOwner);
     hevm.warp(2 days);
     uint256 deadline_ = block.timestamp - 1e4;
@@ -819,7 +815,7 @@ contract BluntDelegateTest is BluntSetup {
   // Same as normal delegate, but no deadline
   function _createDelegateWithoutDeadline()
     internal
-    returns (uint256 _projectId, BluntDelegate _bluntDelegate)
+    returns (uint256 _projectId, BluntDelegateClone _bluntDelegate)
   {
     (
       DeployBluntDelegateData memory deployBluntDelegateData,
@@ -828,14 +824,14 @@ contract BluntDelegateTest is BluntSetup {
     
     launchProjectData.data.duration = 0;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
-    _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+    _bluntDelegate = BluntDelegateClone(_jbProjects.ownerOf(_projectId));
   }
 
   // Same as blunt delegate, but without target and hardcap
   function _createDelegateNoTargetNoCap()
     internal
-    returns (uint256 _projectId, BluntDelegate _bluntDelegate)
+    returns (uint256 _projectId, BluntDelegateClone _bluntDelegate)
   {
     (
       DeployBluntDelegateData memory deployBluntDelegateData,
@@ -846,14 +842,14 @@ contract BluntDelegateTest is BluntSetup {
     deployBluntDelegateData.target = 0;
     deployBluntDelegateData.hardcap = 0;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
-    _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+    _bluntDelegate = BluntDelegateClone(_jbProjects.ownerOf(_projectId));
   }
 
   // Same as blunt delegate, but with target and hardcap in USD
   function _createDelegateUsd()
     internal
-    returns (uint256 _projectId, BluntDelegate _bluntDelegate)
+    returns (uint256 _projectId, BluntDelegateClone _bluntDelegate)
   {
     (
       DeployBluntDelegateData memory deployBluntDelegateData,
@@ -866,8 +862,8 @@ contract BluntDelegateTest is BluntSetup {
     deployBluntDelegateData.isTargetUsd = true;
     deployBluntDelegateData.isHardcapUsd = true;
 
-    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData, _clone);
-    _bluntDelegate = BluntDelegate(_jbProjects.ownerOf(_projectId));
+    _projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+    _bluntDelegate = BluntDelegateClone(_jbProjects.ownerOf(_projectId));
   }
 
   function _successfulRoundAssertions(
