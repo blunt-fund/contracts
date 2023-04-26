@@ -167,9 +167,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   //*********************************************************************//
 
   /**
-   * @dev Constructor to prevent initializing implementation
+   * @dev Prevent initializing implementation contract
    */
-  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
