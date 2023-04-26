@@ -3,29 +3,25 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import 'contracts/BluntDelegateProjectDeployer.sol';
-import 'contracts/BluntDelegateDeployer.sol';
 import 'contracts/BluntDelegateCloner.sol';
 import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 import 'contracts/interfaces/IBluntDelegateCloner.sol';
 
 contract ForkTest is Test {
   BluntDelegateProjectDeployer public bluntDeployer;
-  IBluntDelegateDeployer public delegateDeployer;
   IBluntDelegateCloner public delegateCloner;
 
   function testLaunchProject() public {
     string memory MAINNET_RPC_URL = vm.envString("RPC_URL_MAINNET");
     vm.createSelectFork(MAINNET_RPC_URL, 16843591);
 
-    delegateDeployer = new BluntDelegateDeployer();
     delegateCloner = new BluntDelegateCloner();
 
     bluntDeployer = new BluntDelegateProjectDeployer(
       address(this),
-      delegateDeployer,
       delegateCloner,
       IJBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b), // controller3_1
-      433,
+      490,
       0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, // eth
       0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, // usdc
       350, // maxK, 3.5%
@@ -41,8 +37,7 @@ contract ForkTest is Test {
 
     bluntDeployer.launchProjectFor(
       deployBluntDelegateData,
-      launchProjectData,
-      true
+      launchProjectData
     );
   }
 

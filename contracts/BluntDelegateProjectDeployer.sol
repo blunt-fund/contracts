@@ -59,12 +59,6 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
   /** 
     @notice
-    The contract responsible for deploying the delegate.
-  */
-  IBluntDelegateDeployer public override delegateDeployer;
-
-  /** 
-    @notice
     The contract responsible for deploying the delegate as immutable clones.
   */
   IBluntDelegateCloner public override delegateCloner;
@@ -75,7 +69,6 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
   constructor(
     address deployer,
-    IBluntDelegateDeployer _delegateDeployer,
     IBluntDelegateCloner _delegateCloner,
     IJBController3_1 _controller,
     uint256 _feeProjectId,
@@ -89,7 +82,6 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     // Override ownable's default owner due to CREATE3 deployment
     _transferOwnership(deployer);
     
-    delegateDeployer = _delegateDeployer;
     delegateCloner = _delegateCloner;
     controller = _controller;
     feeProjectId = _feeProjectId;
@@ -111,14 +103,12 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
     @param _deployBluntDelegateData Data necessary to fulfill the transaction to deploy a blunt round data source.
     @param _launchProjectData Data necessary to fulfill the transaction to launch a project.
-    @param _clone True if BluntDelegate is to be an immutable clone
 
     @return projectId The ID of the newly configured project.
   */
   function launchProjectFor(
     DeployBluntDelegateData memory _deployBluntDelegateData,
-    JBLaunchProjectData memory _launchProjectData,
-    bool _clone
+    JBLaunchProjectData memory _launchProjectData
   ) external override returns (uint256 projectId) {
     // Require weight to be non zero to allow for redemptions
     if (_launchProjectData.data.weight == 0)
@@ -140,17 +130,8 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
       lowerFundraiseBoundary
     );
 
-    address _delegateAddress;
-    if (_clone) {
       // Deploy the data source contract as immutable clone
-      _delegateAddress = delegateCloner.deployDelegateFor(_deployerData, _deployBluntDelegateData);
-    } else {
-      // Deploy the data source contract as standard deployment.
-      _delegateAddress = delegateDeployer.deployDelegateFor(
-        _deployerData,
-        _deployBluntDelegateData
-      );
-    }
+    address  _delegateAddress = delegateCloner.deployDelegateFor(_deployerData, _deployBluntDelegateData);
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);
@@ -160,14 +141,11 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     @notice
     Update delegate addresses. Can only be called by contract owner.
 
-    @param newDelegateDeployer_ New delegateDeployer address
     @param newDelegateCloner_ new delegateCloner address
   */
-  function _setDelegates(
-    IBluntDelegateDeployer newDelegateDeployer_,
+  function _setDeployer(
     IBluntDelegateCloner newDelegateCloner_
   ) external override onlyOwner {
-    delegateDeployer = newDelegateDeployer_;
     delegateCloner = newDelegateCloner_;
   }
 
