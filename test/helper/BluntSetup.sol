@@ -75,7 +75,7 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _weight = 1e15;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
-  IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
+  IPriceFeed internal _priceFeed = IPriceFeed(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3);
   ReceiverMock internal _receiver;
 
   JBOperatorStore internal _jbOperatorStore;
@@ -248,7 +248,7 @@ contract BluntSetup is DSTestPlus {
 
     // ---- Deploy Price Feed Mock ----
     PriceFeedMock priceFeedMock = new PriceFeedMock();
-    hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
+    hevm.etch(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3, address(priceFeedMock).code);
     hevm.label(address(priceFeedMock), 'Price Feed');
 
     // ---- Deploy Receiver Mock ----

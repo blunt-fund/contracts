@@ -48,7 +48,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @notice
     Price feed instance
   */
-  IPriceFeed private constant priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
+  IPriceFeed private constant priceFeed = IPriceFeed(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3);
 
   /**
     @notice
