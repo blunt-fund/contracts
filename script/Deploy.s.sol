@@ -10,7 +10,10 @@ import 'contracts/interfaces/IBluntDelegateCloner.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController3_1.sol';
 
 contract DeployScript is Script {
-  function run() public returns (BluntDelegateProjectDeployer bluntDeployer) {
+  function run()
+    public
+    returns (BluntDelegateCloner delegateCloner, BluntDelegateProjectDeployer bluntDeployer)
+  {
     CREATE3Factory create3Factory = CREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
     bytes32 saltProjectDeployer = keccak256(bytes(vm.envString('SALT_PROJECT_DEPLOYER')));
     bytes32 saltCloner = keccak256(bytes(vm.envString('SALT_CLONER')));
@@ -31,7 +34,7 @@ contract DeployScript is Script {
 
     vm.startBroadcast(deployerPrivateKey);
 
-    BluntDelegateCloner delegateCloner = BluntDelegateCloner(
+    delegateCloner = BluntDelegateCloner(
       create3Factory.deploy(saltCloner, bytes.concat(type(BluntDelegateCloner).creationCode))
     );
 

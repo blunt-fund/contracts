@@ -1,5 +1,4 @@
 {
-  "BluntDelegateDeployer": "0x4404750317a495b7780235a109b8a1b6344ef12b",
-  "BluntDelegateCloner": "0x55ff5daa42508b52f0e2e646f0ea868e382329d3",
-  "BluntDelegateProjectDeployer": "0xea0d616955c2728beeda5481de7dbfa921de6447"
+  "BluntDelegateCloner": "0x339F97760cF413e61DF89890EfE7abf4E73E294c",
+  "BluntDelegateProjectDeployer": "0xAA6C20483b2E84c94f76B698a9e569d00A8eFDc5"
 }

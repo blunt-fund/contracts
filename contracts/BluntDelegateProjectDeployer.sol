@@ -32,7 +32,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
   /**
     @notice
-    The ID of the Blunt Finance project.
+    The ID of the Blunt project.
   */
   uint256 public immutable feeProjectId;
 
@@ -48,7 +48,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
   /**
     @notice
-    Parameters used to calculate Blunt Finance round fees
+    Parameters used to calculate Blunt round fees
     @dev 
     uint56 is enough as allows for boundaries of up to 70B USD (7e16 with 6 decimals)
   */

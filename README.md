@@ -1,4 +1,4 @@
-# Blunt Finance
+# Blunt
 
 #### Fundraise bluntly in the open with your community
 
@@ -6,13 +6,13 @@ Create permissionless funding rounds with target, hardcap, deadline and a set of
 
 ## How it works
 
-[Blunt Finance](https://blunt.finance) allows creating opinionated Juicebox projects with a pre-defined set of rules, by attaching a [BluntDelegate](/contracts/BluntDelegate.sol) data source.
+[Blunt](https://blunt.fund) allows creating opinionated Juicebox projects with a pre-defined set of rules, by attaching a [BluntDelegate](/contracts/BluntDelegate.sol) data source.
 
 Blunt rounds are created via [BluntDelegateProjectDeployer](/contracts/BluntDelegateProjectDeployer.sol). The deployer guarantees that:
 
 - The `BluntDelegate` data source acts as the project owner until a successful round is closed, preventing any modification by the creator or future project owner;
 - Contributors can redeem the amounts contributed in full anytime while the round is in progress or if a round is closed unsuccessfully;
-- When a round is closed successfully (ie the fundraising target is reached), ownership is transferred to the rightful owner and a fee is paid to the Blunt Finance treasury in addition to the canonic Juicebox fee. The project owner in exchange receives an amount of BF tokens proportionally to the amount raised.
+- When a round is closed successfully (ie the fundraising target is reached), ownership is transferred to the rightful owner and a fee is paid to the Blunt treasury in addition to the canonic Juicebox fee. The project owner in exchange receives an amount of BF tokens proportionally to the amount raised.
 
 When a blunt round ends successfully, it turns into a typical Juicebox project that can be managed by the appointed project owner
 
@@ -41,12 +41,12 @@ When a blunt round ends successfully, it turns into a typical Juicebox project t
 
 ## Learn more
 
-- [Blunt Finance Discord](https://discord.gg/Jd8XQjwYZY)
-- [Blunt Finance Website](https://blunt.finance)
+- [Blunt Discord](https://discord.gg/Jd8XQjwYZY)
+- [Blunt Website](https://blunt.fund)
 - [Juicebox protocol](https://juicebox.money)
 
 ## Contributing
 
 This project uses [Foundry](https://github.com/foundry-rs/foundry) as development framework.
 
-[Merge to earn](https://mte.slice.so) is used to reward contributors with a piece of the [Blunt Finance slicer](https://slice.so/slicer/24) and its earnings, when pull requests are merged.
+[Merge to earn](https://mte.slice.so) is used to reward contributors with a piece of the [Blunt slicer](https://slice.so/slicer/24) and its earnings, when pull requests are merged.

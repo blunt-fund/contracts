@@ -6,7 +6,7 @@ import './interfaces/IPriceFeed.sol';
 import '@openzeppelin-upgradeable/proxy/utils/Initializable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal3_1.sol';
 
-/// @title Base Blunt Finance data source for Juicebox projects.
+/// @title Base Blunt data source for Juicebox projects.
 /// @author jacopo <jacopo@slice.so>
 /// @notice Permissionless funding rounds with target, hardcap, deadline and a set of pre-defined rules.
 contract BluntDelegateClone is IBluntDelegateClone, Initializable {
@@ -76,7 +76,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    Constants used to calculate Blunt Finance fee
+    Constants used to calculate Blunt fee
 
     @dev MAX_K: The max percentage of the total contributions that can be taken as a fee
     @dev MIN_K: The min percentage of the total contributions that can be taken as a fee
@@ -330,7 +330,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
         'Blunt round completed'
       );
 
-      // Distribute payout fee to Blunt Finance
+      // Distribute payout fee to Blunt
       IJBPayoutTerminal3_1(terminal).distributePayoutsOf({
         _projectId: projectId,
         _amount: fee,
@@ -469,7 +469,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    Format data to reconfig project and pay Blunt Finance fee
+    Format data to reconfig project and pay Blunt fee
   */
   function _formatReconfigData()
     private
