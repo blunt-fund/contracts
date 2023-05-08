@@ -33,6 +33,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   );
   event RoundClosed();
   event DeadlineSet(uint256 deadline);
+  event TokenMetadataSet(string tokenName_, string tokenSymbol_);
 
   //*********************************************************************//
   // ------------------------ immutable storage ------------------------ //
@@ -156,6 +157,18 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   */
   bool private isRoundClosed;
 
+  /** 
+    @notice
+    Name of the token to be issued in case of a successful round
+  */
+  string private tokenName;
+
+  /** 
+    @notice
+    Symbol of the token to be issued in case of a successful round
+  */
+  string private tokenSymbol;
+
   /**
     @notice
     Mapping from beneficiary to contributions
@@ -203,6 +216,12 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     isTargetUsd = _deployBluntDelegateData.isTargetUsd;
     hardcap = _deployBluntDelegateData.hardcap;
     isHardcapUsd = _deployBluntDelegateData.isHardcapUsd;
+
+    /// Set token name and symbol
+    if (bytes(_deployBluntDelegateData.tokenName).length != 0)
+      tokenName = _deployBluntDelegateData.tokenName;
+    if (bytes(_deployBluntDelegateData.tokenSymbol).length != 0)
+      tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
     /// Set deadline based on round duration
     if (_deployBluntDelegateDeployerData.duration != 0)
@@ -310,6 +329,14 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       // Prevent successful rounds to be closed before the deadline
       if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
 
+      string memory tokenName_ = tokenName;
+      string memory tokenSymbol_ = tokenSymbol;
+      /// If token name and symbol have been set
+      if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
+        /// Issue ERC20 project token
+        controller.tokenStore().issueFor(projectId, tokenName_, tokenSymbol_);
+      }
+
       (
         address terminal,
         uint256 fee,
@@ -364,6 +391,23 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
     deadline = uint40(deadline_);
     emit DeadlineSet(deadline_);
+  }
+
+  /**
+    @notice 
+    Update erc20 `tokenName` and `tokenSymbol` related to the project
+  */
+  function setTokenMetadata(
+    string memory tokenName_,
+    string memory tokenSymbol_
+  ) external override {
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    if (isRoundClosed) revert ROUND_CLOSED();
+
+    tokenName = tokenName_;
+    tokenSymbol = tokenSymbol_;
+
+    emit TokenMetadataSet(tokenName_, tokenSymbol_);
   }
 
   //*********************************************************************//
@@ -442,6 +486,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
         target,
         hardcap,
         projectOwner,
+        tokenName,
+        tokenSymbol,
         isRoundClosed,
         deadline,
         isTargetUsd,

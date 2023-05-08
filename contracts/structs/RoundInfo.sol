@@ -8,6 +8,8 @@ struct RoundInfo {
   uint256 target;
   uint256 hardcap;
   address projectOwner;
+  string tokenName;
+  string tokenSymbol;
   bool isRoundClosed;
   uint256 deadline;
   bool isTargetUsd;

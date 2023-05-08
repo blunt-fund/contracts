@@ -11,4 +11,6 @@ struct DeployBluntDelegateData {
   uint88 target;
   bool isTargetUsd;
   bool isHardcapUsd;
+  string tokenName;
+  string tokenSymbol;
 }
