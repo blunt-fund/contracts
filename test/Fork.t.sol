@@ -75,7 +75,9 @@ contract ForkTest is Test {
       0,
       0,
       false,
-      false
+      false,
+      "Blunt",
+      "BLUNT"
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);

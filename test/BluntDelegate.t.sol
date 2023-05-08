@@ -31,6 +31,7 @@ contract BluntDelegateTest is BluntSetup {
   );
   event RoundClosed();
   event DeadlineSet(uint256 deadline);
+  event TokenMetadataSet(string tokenName, string tokenSymbol);
 
   //*********************************************************************//
   // ------------------------------ setup ------------------------------ //
@@ -104,6 +105,8 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(roundInfo.target, _target);
     assertEq(roundInfo.hardcap, _hardcap);
     assertEq(roundInfo.projectOwner, _bluntProjectOwner);
+    assertEq(roundInfo.tokenName, _tokenName);
+    assertEq(roundInfo.tokenSymbol, _tokenSymbol);
     assertBoolEq(roundInfo.isRoundClosed, false);
     assertEq(roundInfo.deadline, block.timestamp + launchProjectData.data.duration);
     assertBoolEq(roundInfo.isTargetUsd, _isTargetUsd);
@@ -343,6 +346,9 @@ contract BluntDelegateTest is BluntSetup {
 
     address owner = _jbProjects.ownerOf(projectId);
     assertEq(owner, address(bluntDelegate));
+
+    address currency = address(_jbTokenStore.tokenOf(projectId));
+    assertEq(currency, address(0));
   }
 
   function testCloseRoundAtZero_NoTarget() public {
@@ -358,6 +364,9 @@ contract BluntDelegateTest is BluntSetup {
 
     address owner = _jbProjects.ownerOf(projectId_);
     assertEq(owner, address(bluntDelegateAlt_));
+
+    address currency = address(_jbTokenStore.tokenOf(projectId_));
+    assertEq(currency, address(0));
   }
 
   function testCloseRoundSuccessfully_NoTarget() public {
@@ -387,6 +396,9 @@ contract BluntDelegateTest is BluntSetup {
     hevm.warp(100);
 
     _successfulRoundAssertions(projectId_, timestamp, totalContributions);
+
+    address currency = address(_jbTokenStore.tokenOf(projectId_));
+    assertTrue(currency != address(0));
   }
 
   function testSetDeadline() public {
@@ -405,7 +417,23 @@ contract BluntDelegateTest is BluntSetup {
     assertEq(newRoundInfo.deadline, deadline_);
   }
 
+  function testSetTokenMetadata() public {
+    string memory newTokenName = 'Name';
+    string memory newTokenSymbol = 'SYM';
+
+    hevm.prank(_bluntProjectOwner);
+    bluntDelegate.setTokenMetadata(newTokenName, newTokenSymbol);
+
+    RoundInfo memory roundInfo = bluntDelegate.getRoundInfo();
+
+    assertEq(roundInfo.tokenName, newTokenName);
+    assertEq(roundInfo.tokenSymbol, newTokenSymbol);
+  }
+
   function testCloseRoundAboveTarget() public {
+    address currency = address(_jbTokenStore.tokenOf(projectId));
+    assertTrue(currency == address(0));
+
     uint256 amount = _target + 1e15;
     _jbETHPaymentTerminal.pay{value: amount}(
       projectId,
@@ -433,6 +461,9 @@ contract BluntDelegateTest is BluntSetup {
     hevm.warp(7 days + 100);
 
     _successfulRoundAssertions(projectId, timestamp, totalContributions);
+
+    currency = address(_jbTokenStore.tokenOf(projectId));
+    assertTrue(currency != address(0));
   }
 
   function testCalculateFee_lowerBoundary(uint256 amount) public {
@@ -805,6 +836,26 @@ contract BluntDelegateTest is BluntSetup {
     hevm.expectRevert(bytes4(keccak256('INVALID_DEADLINE()')));
     bluntDelegateAlt_.setDeadline(deadline_);
 
+    hevm.stopPrank();
+  }
+
+  function testRevert_setTokenMetadata_notProjectOwner() public {
+    string memory newTokenName = 'Name';
+    string memory newTokenSymbol = 'SYM';
+
+    hevm.expectRevert(bytes4(keccak256('NOT_PROJECT_OWNER()')));
+    bluntDelegate.setTokenMetadata(newTokenName, newTokenSymbol);
+  }
+
+  function testRevert_setTokenMetadata_roundClosed() public {
+    string memory newTokenName = 'Name';
+    string memory newTokenSymbol = 'SYM';
+
+    hevm.startPrank(_bluntProjectOwner);
+    bluntDelegate.closeRound();
+
+    hevm.expectRevert(bytes4(keccak256('ROUND_CLOSED()')));
+    bluntDelegate.setTokenMetadata(newTokenName, newTokenSymbol);
     hevm.stopPrank();
   }
 
