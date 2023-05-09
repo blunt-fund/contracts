@@ -27,6 +27,3 @@
 	path = lib/prb-math
 	url = https://github.com/paulrberg/prb-math
 	branch = v2.5.0
-[submodule "lib/juice-delegates-registry"]
-	path = lib/juice-delegates-registry
-	url = https://github.com/jbx-protocol/juice-delegates-registry

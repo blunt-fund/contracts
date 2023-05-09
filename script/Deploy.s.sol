@@ -10,32 +10,37 @@ import 'contracts/interfaces/IBluntDelegateCloner.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBController3_1.sol';
 
 contract DeployScript is Script {
+  CREATE3Factory create3Factory = CREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
+  bytes32 saltProjectDeployer = keccak256(bytes(vm.envString('SALT_PROJECT_DEPLOYER')));
+  bytes32 saltCloner = keccak256(bytes(vm.envString('SALT_CLONER')));
+  uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
+  address deployerAddress = vm.addr(deployerPrivateKey);
+
+  // MAINNET PARAMS
+  // IJBController3_1 jbController = IJBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b);
+  // uint256 bluntProjectId = 490;
+  // address ethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  // address usdcAddress = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+  // address delegateRegistry = 0x7A53cAA1dC4d752CAD283d039501c0Ee45719FaC;
+
+  // GOERLI PARAMS
+  IJBController3_1 jbController = IJBController3_1(0x1d260DE91233e650F136Bf35f8A4ea1F2b68aDB6);
+  uint256 bluntProjectId = 314;
+  address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
+  address usdcAddress = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
+  address delegateRegistry = 0xCe3Ebe8A7339D1f7703bAF363d26cD2b15D23C23;
+
   function run()
     public
     returns (BluntDelegateCloner delegateCloner, BluntDelegateProjectDeployer bluntDeployer)
   {
-    CREATE3Factory create3Factory = CREATE3Factory(0x9fBB3DF7C40Da2e5A0dE984fFE2CCB7C47cd0ABf);
-    bytes32 saltProjectDeployer = keccak256(bytes(vm.envString('SALT_PROJECT_DEPLOYER')));
-    bytes32 saltCloner = keccak256(bytes(vm.envString('SALT_CLONER')));
-    uint256 deployerPrivateKey = vm.envUint('PRIVATE_KEY');
-    address deployerAddress = vm.addr(deployerPrivateKey);
-
-    // MAINNET PARAMS
-    // IJBController3_1 jbController = IJBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b);
-    // uint256 bluntProjectId = 490;
-    // address ethAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    // address usdcAddress = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-
-    // GOERLI PARAMS
-    IJBController3_1 jbController = IJBController3_1(0x1d260DE91233e650F136Bf35f8A4ea1F2b68aDB6);
-    uint256 bluntProjectId = 314;
-    address ethAddress = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
-    address usdcAddress = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F;
-
     vm.startBroadcast(deployerPrivateKey);
 
     delegateCloner = BluntDelegateCloner(
-      create3Factory.deploy(saltCloner, bytes.concat(type(BluntDelegateCloner).creationCode))
+      create3Factory.deploy(
+        saltCloner,
+        bytes.concat(type(BluntDelegateCloner).creationCode, abi.encode(delegateRegistry))
+      )
     );
 
     bluntDeployer = BluntDelegateProjectDeployer(

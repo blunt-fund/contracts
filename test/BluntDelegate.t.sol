@@ -40,7 +40,7 @@ contract BluntDelegateTest is BluntSetup {
   function setUp() public virtual override {
     BluntSetup.setUp();
 
-    IBluntDelegateCloner delegateCloner = new BluntDelegateCloner();
+    IBluntDelegateCloner delegateCloner = new BluntDelegateCloner(_registry);
 
     bluntDeployer = new BluntDelegateProjectDeployer(
       address(this),

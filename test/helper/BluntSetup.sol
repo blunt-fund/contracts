@@ -43,8 +43,10 @@ import '../structs/JBPayDataSourceFundingCycleMetadata.sol';
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
 import 'contracts/interfaces/IPriceFeed.sol';
+import 'contracts/interfaces/IJBDelegatesRegistry.sol';
 import '../mocks/PriceFeedMock.sol';
 import '../mocks/ReceiverMock.sol';
+import '../mocks/JBDelegatesRegistryMock.sol';
 
 // Base contract for Juicebox system tests.
 //
@@ -75,6 +77,7 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _weight = 1e15;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
+  IJBDelegatesRegistry internal _registry;
   IPriceFeed internal _priceFeed = IPriceFeed(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3);
   ReceiverMock internal _receiver;
 
@@ -245,6 +248,9 @@ contract BluntSetup is DSTestPlus {
       _terminals,
       ''
     );
+
+    // ---- Deploy JBDelegatesRegistry ----
+    _registry = IJBDelegatesRegistry(new JBDelegatesRegistryMock());
 
     // ---- Deploy Price Feed Mock ----
     PriceFeedMock priceFeedMock = new PriceFeedMock();

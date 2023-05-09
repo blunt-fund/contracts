@@ -6,6 +6,7 @@ import 'contracts/BluntDelegateProjectDeployer.sol';
 import 'contracts/BluntDelegateCloner.sol';
 import 'contracts/interfaces/IBluntDelegateDeployer.sol';
 import 'contracts/interfaces/IBluntDelegateCloner.sol';
+import 'contracts/interfaces/IJBDelegatesRegistry.sol';
 
 contract ForkTest is Test {
   BluntDelegateProjectDeployer public bluntDeployer;
@@ -15,7 +16,7 @@ contract ForkTest is Test {
     string memory MAINNET_RPC_URL = vm.envString("RPC_URL_MAINNET");
     vm.createSelectFork(MAINNET_RPC_URL, 16843591);
 
-    delegateCloner = new BluntDelegateCloner();
+    delegateCloner = new BluntDelegateCloner(IJBDelegatesRegistry(0x7A53cAA1dC4d752CAD283d039501c0Ee45719FaC));
 
     bluntDeployer = new BluntDelegateProjectDeployer(
       address(this),

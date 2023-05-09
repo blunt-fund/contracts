@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
+import {JBConstants} from '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 
