@@ -43,8 +43,10 @@ import '../structs/JBPayDataSourceFundingCycleMetadata.sol';
 import '../../contracts/structs/DeployBluntDelegateData.sol';
 import '../../contracts/structs/JBLaunchProjectData.sol';
 import 'contracts/interfaces/IPriceFeed.sol';
+import 'contracts/interfaces/IJBDelegatesRegistry.sol';
 import '../mocks/PriceFeedMock.sol';
 import '../mocks/ReceiverMock.sol';
+import '../mocks/JBDelegatesRegistryMock.sol';
 
 // Base contract for Juicebox system tests.
 //
@@ -75,7 +77,8 @@ contract BluntSetup is DSTestPlus {
   uint256 internal _weight = 1e15;
 
   address internal _bluntProjectOwner = address(bytes20(keccak256('bluntProjectOwner')));
-  IPriceFeed internal _priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
+  IJBDelegatesRegistry internal _registry;
+  IPriceFeed internal _priceFeed = IPriceFeed(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3);
   ReceiverMock internal _receiver;
 
   JBOperatorStore internal _jbOperatorStore;
@@ -246,9 +249,12 @@ contract BluntSetup is DSTestPlus {
       ''
     );
 
+    // ---- Deploy JBDelegatesRegistry ----
+    _registry = IJBDelegatesRegistry(new JBDelegatesRegistryMock());
+
     // ---- Deploy Price Feed Mock ----
     PriceFeedMock priceFeedMock = new PriceFeedMock();
-    hevm.etch(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F, address(priceFeedMock).code);
+    hevm.etch(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3, address(priceFeedMock).code);
     hevm.label(address(priceFeedMock), 'Price Feed');
 
     // ---- Deploy Receiver Mock ----
@@ -299,7 +305,9 @@ contract BluntSetup is DSTestPlus {
       _hardcap,
       _target,
       _isTargetUsd,
-      _isHardcapUsd
+      _isHardcapUsd,
+      _tokenName,
+      _tokenSymbol
     );
 
     IJBPaymentTerminal[] memory terminals = new IJBPaymentTerminal[](1);

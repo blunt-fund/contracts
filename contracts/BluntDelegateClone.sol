@@ -6,7 +6,7 @@ import './interfaces/IPriceFeed.sol';
 import '@openzeppelin-upgradeable/proxy/utils/Initializable.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/interfaces/IJBPayoutTerminal3_1.sol';
 
-/// @title Base Blunt Finance data source for Juicebox projects.
+/// @title Base Blunt data source for Juicebox projects.
 /// @author jacopo <jacopo@slice.so>
 /// @notice Permissionless funding rounds with target, hardcap, deadline and a set of pre-defined rules.
 contract BluntDelegateClone is IBluntDelegateClone, Initializable {
@@ -33,6 +33,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   );
   event RoundClosed();
   event DeadlineSet(uint256 deadline);
+  event TokenMetadataSet(string tokenName_, string tokenSymbol_);
 
   //*********************************************************************//
   // ------------------------ immutable storage ------------------------ //
@@ -48,7 +49,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     @notice
     Price feed instance
   */
-  IPriceFeed private constant priceFeed = IPriceFeed(0xf2E8176c0b67232b20205f4dfbCeC3e74bca471F);
+  IPriceFeed private constant priceFeed = IPriceFeed(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3);
 
   /**
     @notice
@@ -76,7 +77,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    Constants used to calculate Blunt Finance fee
+    Constants used to calculate Blunt fee
 
     @dev MAX_K: The max percentage of the total contributions that can be taken as a fee
     @dev MIN_K: The min percentage of the total contributions that can be taken as a fee
@@ -156,6 +157,18 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
   */
   bool private isRoundClosed;
 
+  /** 
+    @notice
+    Name of the token to be issued in case of a successful round
+  */
+  string private tokenName;
+
+  /** 
+    @notice
+    Symbol of the token to be issued in case of a successful round
+  */
+  string private tokenSymbol;
+
   /**
     @notice
     Mapping from beneficiary to contributions
@@ -203,6 +216,12 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
     isTargetUsd = _deployBluntDelegateData.isTargetUsd;
     hardcap = _deployBluntDelegateData.hardcap;
     isHardcapUsd = _deployBluntDelegateData.isHardcapUsd;
+
+    /// Set token name and symbol
+    if (bytes(_deployBluntDelegateData.tokenName).length != 0)
+      tokenName = _deployBluntDelegateData.tokenName;
+    if (bytes(_deployBluntDelegateData.tokenSymbol).length != 0)
+      tokenSymbol = _deployBluntDelegateData.tokenSymbol;
 
     /// Set deadline based on round duration
     if (_deployBluntDelegateDeployerData.duration != 0)
@@ -310,6 +329,14 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
       // Prevent successful rounds to be closed before the deadline
       if (deadline != 0 && block.timestamp < deadline) revert ROUND_NOT_ENDED();
 
+      string memory tokenName_ = tokenName;
+      string memory tokenSymbol_ = tokenSymbol;
+      /// If token name and symbol have been set
+      if (bytes(tokenName_).length != 0 && bytes(tokenSymbol_).length != 0) {
+        /// Issue ERC20 project token
+        controller.tokenStore().issueFor(projectId, tokenName_, tokenSymbol_);
+      }
+
       (
         address terminal,
         uint256 fee,
@@ -330,7 +357,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
         'Blunt round completed'
       );
 
-      // Distribute payout fee to Blunt Finance
+      // Distribute payout fee to Blunt
       IJBPayoutTerminal3_1(terminal).distributePayoutsOf({
         _projectId: projectId,
         _amount: fee,
@@ -364,6 +391,23 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
     deadline = uint40(deadline_);
     emit DeadlineSet(deadline_);
+  }
+
+  /**
+    @notice 
+    Update erc20 `tokenName` and `tokenSymbol` related to the project
+  */
+  function setTokenMetadata(
+    string memory tokenName_,
+    string memory tokenSymbol_
+  ) external override {
+    if (msg.sender != projectOwner) revert NOT_PROJECT_OWNER();
+    if (isRoundClosed) revert ROUND_CLOSED();
+
+    tokenName = tokenName_;
+    tokenSymbol = tokenSymbol_;
+
+    emit TokenMetadataSet(tokenName_, tokenSymbol_);
   }
 
   //*********************************************************************//
@@ -442,6 +486,8 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
         target,
         hardcap,
         projectOwner,
+        tokenName,
+        tokenSymbol,
         isRoundClosed,
         deadline,
         isTargetUsd,
@@ -469,7 +515,7 @@ contract BluntDelegateClone is IBluntDelegateClone, Initializable {
 
   /**
     @notice
-    Format data to reconfig project and pay Blunt Finance fee
+    Format data to reconfig project and pay Blunt fee
   */
   function _formatReconfigData()
     private

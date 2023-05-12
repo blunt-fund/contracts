@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
+import {JBConstants} from '@jbx-protocol/juice-contracts-v3/contracts/libraries/JBConstants.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './interfaces/IBluntDelegateProjectDeployer.sol';
 
@@ -32,7 +32,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
   /**
     @notice
-    The ID of the Blunt Finance project.
+    The ID of the Blunt project.
   */
   uint256 public immutable feeProjectId;
 
@@ -48,7 +48,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
   /**
     @notice
-    Parameters used to calculate Blunt Finance round fees
+    Parameters used to calculate Blunt round fees
     @dev 
     uint56 is enough as allows for boundaries of up to 70B USD (7e16 with 6 decimals)
   */
@@ -81,7 +81,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
   ) {
     // Override ownable's default owner due to CREATE3 deployment
     _transferOwnership(deployer);
-    
+
     delegateCloner = _delegateCloner;
     controller = _controller;
     feeProjectId = _feeProjectId;
@@ -111,8 +111,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     JBLaunchProjectData memory _launchProjectData
   ) external override returns (uint256 projectId) {
     // Require weight to be non zero to allow for redemptions
-    if (_launchProjectData.data.weight == 0)
-      revert INVALID_TOKEN_ISSUANCE();
+    if (_launchProjectData.data.weight == 0) revert INVALID_TOKEN_ISSUANCE();
 
     // Get the project ID, optimistically knowing it will be one greater than the current count.
     projectId = controller.projects().count() + 1;
@@ -130,8 +129,11 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
       lowerFundraiseBoundary
     );
 
-      // Deploy the data source contract as immutable clone
-    address  _delegateAddress = delegateCloner.deployDelegateFor(_deployerData, _deployBluntDelegateData);
+    // Deploy the data source contract as immutable clone
+    address _delegateAddress = delegateCloner.deployDelegateFor(
+      _deployerData,
+      _deployBluntDelegateData
+    );
 
     // Launch the project.
     _launchProjectFor(_delegateAddress, _launchProjectData);
@@ -143,9 +145,7 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
 
     @param newDelegateCloner_ new delegateCloner address
   */
-  function _setDeployer(
-    IBluntDelegateCloner newDelegateCloner_
-  ) external override onlyOwner {
+  function _setDeployer(IBluntDelegateCloner newDelegateCloner_) external override onlyOwner {
     delegateCloner = newDelegateCloner_;
   }
 
@@ -191,13 +191,13 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
     controller.launchProjectFor(
       _delegate,
       _launchProjectData.projectMetadata,
-      JBFundingCycleData ({
-        duration: 0, 
+      JBFundingCycleData({
+        duration: 0,
         weight: _launchProjectData.data.weight,
         discountRate: 0,
         ballot: IJBFundingCycleBallot(address(0))
       }),
-      JBFundingCycleMetadata ({
+      JBFundingCycleMetadata({
         global: JBGlobalFundingCycleMetadata({
           allowSetTerminals: false,
           allowSetController: false,
@@ -218,8 +218,8 @@ contract BluntDelegateProjectDeployer is IBluntDelegateProjectDeployer, Ownable 
         useTotalOverflowForRedemptions: false,
         useDataSourceForPay: true,
         useDataSourceForRedeem: true,
-        dataSource: _delegate, // The delegate is the data source. 
-        metadata: 0 
+        dataSource: _delegate, // The delegate is the data source.
+        metadata: 0
       }),
       _launchProjectData.mustStartAtOrAfter,
       new JBGroupedSplits[](0),

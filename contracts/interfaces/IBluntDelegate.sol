@@ -19,5 +19,7 @@ interface IBluntDelegate is
 
   function setDeadline(uint256 deadline_) external;
 
+  function setTokenMetadata(string memory tokenName_, string memory tokenSymbol_) external;
+
   function isTargetReached() external view returns (bool);
 }

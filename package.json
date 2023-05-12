@@ -1,11 +1,11 @@
 {
-  "name": "blunt-finance",
+  "name": "blunt",
   "bugs": {
-    "url": "https://github.com/jbx-protocol/blunt-finance/issues"
+    "url": "https://github.com/jbx-protocol/blunt/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jbx-protocol/blunt-finance"
+    "url": "https://github.com/jbx-protocol/blunt"
   },
   "version": "1.0.0",
   "license": "MIT",

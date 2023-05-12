@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import '@openzeppelin/contracts/proxy/Clones.sol';
 import './BluntDelegateClone.sol';
 import './interfaces/IBluntDelegateCloner.sol';
+import {IJBDelegatesRegistry} from './interfaces/IJBDelegatesRegistry.sol';
 
 contract BluntDelegateCloner is IBluntDelegateCloner {
   //*********************************************************************//
@@ -12,6 +13,22 @@ contract BluntDelegateCloner is IBluntDelegateCloner {
 
   address public immutable implementation;
 
+  /** 
+    @notice
+    JB delegates registry address
+  */
+  IJBDelegatesRegistry public immutable override delegatesRegistry;
+
+  //*********************************************************************//
+  // ------------------------  mutable storage  ------------------------ //
+  //*********************************************************************//
+
+  /** 
+    @notice 
+    This contract current nonce, used for the registry
+  */
+  uint256 private _nonce;
+
   //*********************************************************************//
   // --------------------------- constructor --------------------------- //
   //*********************************************************************//
@@ -19,8 +36,9 @@ contract BluntDelegateCloner is IBluntDelegateCloner {
   /**
    * @notice Initializes the contract and deploys the clone implementation.
    */
-  constructor() {
+  constructor(IJBDelegatesRegistry _registry) {
     implementation = address(new BluntDelegateClone());
+    delegatesRegistry = _registry;
   }
 
   //*********************************************************************//
@@ -48,6 +66,11 @@ contract BluntDelegateCloner is IBluntDelegateCloner {
       _deployBluntDelegateDeployerData,
       _deployBluntDelegateData
     );
+
+    unchecked {
+      // Add the delegate to the registry, contract nonce starts at 1
+      delegatesRegistry.addDelegate(address(this), ++_nonce);
+    }
 
     emit DelegateDeployed(_deployBluntDelegateDeployerData.projectId, newDelegate);
   }
