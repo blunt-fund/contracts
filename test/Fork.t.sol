@@ -12,15 +12,23 @@ import '@jbx-protocol/juice-contracts-v3/contracts/JBTokenStore.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBController3_1.sol';
 import '@jbx-protocol/juice-contracts-v3/contracts/JBFundingCycleStore.sol';
 import {JBProjects} from '@jbx-protocol/juice-contracts-v3/contracts/JBProjects.sol';
+import {IGovernor} from '@openzeppelin/contracts/governance/IGovernor.sol';
+import {ERC20Votes} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol';
+import {GovernorCountingSimple} from '@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol';
 
 contract ForkTest is Test {
-  BluntDelegateProjectDeployer public bluntDeployer  = BluntDelegateProjectDeployer(0x1d6b0Ff3D522C3870294a9e2948beb18994561dE);
-  IBluntDelegateCloner public delegateCloner = BluntDelegateCloner(0x2123c29B76EcEb8bB0893724f64F561ccFB38FAb);
-  JBETHPaymentTerminal3_1 internal jbETHPaymentTerminal = JBETHPaymentTerminal3_1(0xFA391De95Fcbcd3157268B91d8c7af083E607A5C);
+  BluntDelegateProjectDeployer public bluntDeployer =
+    BluntDelegateProjectDeployer(0x1d6b0Ff3D522C3870294a9e2948beb18994561dE);
+  IBluntDelegateCloner public delegateCloner =
+    BluntDelegateCloner(0x2123c29B76EcEb8bB0893724f64F561ccFB38FAb);
+  JBETHPaymentTerminal3_1 internal jbETHPaymentTerminal =
+    JBETHPaymentTerminal3_1(0xFA391De95Fcbcd3157268B91d8c7af083E607A5C);
   JBProjects internal jbProjects = JBProjects(0xD8B4359143eda5B2d763E127Ed27c77addBc47d3);
   JBTokenStore internal jbTokenStore = JBTokenStore(0x6FA996581D7edaABE62C15eaE19fEeD4F1DdDfE7);
-  JBController3_1 internal jbController = JBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b);
-  JBFundingCycleStore internal jbFundingCycleStore = JBFundingCycleStore(0x6f18cF9173136c0B5A6eBF45f19D58d3ff2E17e6);
+  JBController3_1 internal jbController =
+    JBController3_1(0x97a5b9D9F0F7cD676B69f584F29048D0Ef4BB59b);
+  JBFundingCycleStore internal jbFundingCycleStore =
+    JBFundingCycleStore(0x6f18cF9173136c0B5A6eBF45f19D58d3ff2E17e6);
   IPriceFeed internal priceFeed = IPriceFeed(0x71c96edD5D36935d5c8d6B78bCcD4113725297e3);
   BluntDelegateClone public bluntDelegate;
   address projectOwner = makeAddr('projectOwner');
@@ -33,7 +41,7 @@ contract ForkTest is Test {
 
   function setUp() public {
     string memory MAINNET_RPC_URL = vm.envString('RPC_URL_MAINNET');
-    vm.createSelectFork(MAINNET_RPC_URL, 17243897);
+    vm.createSelectFork(MAINNET_RPC_URL, 17378536);
 
     delegateCloner;
     bluntDeployer;
@@ -62,22 +70,14 @@ contract ForkTest is Test {
 
     uint256 projectId = bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
     bluntDelegate = BluntDelegateClone(jbProjects.ownerOf(projectId));
-    
+
     uint256 amount = 1e15;
-    jbETHPaymentTerminal.pay{value: amount}(
-      projectId,
-      0,
-      address(0),
-      msg.sender,
-      0,
-      false,
-      '',
-      ''
-    );
-    uint256 initBfBalance = IJBSingleTokenPaymentTerminalStore(jbETHPaymentTerminal.store()).balanceOf(
-      jbETHPaymentTerminal,
-      490 // bluntProjectId
-    );
+    jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), msg.sender, 0, false, '', '');
+    uint256 initBfBalance = IJBSingleTokenPaymentTerminalStore(jbETHPaymentTerminal.store())
+      .balanceOf(
+        jbETHPaymentTerminal,
+        490 // bluntProjectId
+      );
 
     uint256 totalContributions = bluntDelegate.getRoundInfo().totalContributions;
     vm.warp(block.timestamp + 7 days);
@@ -88,7 +88,7 @@ contract ForkTest is Test {
 
     vm.warp(block.timestamp + 100);
 
-    _successfulRoundAssertions(projectId, block.timestamp, totalContributions,initBfBalance);
+    _successfulRoundAssertions(projectId, block.timestamp, totalContributions, initBfBalance);
 
     address currency = address(jbTokenStore.tokenOf(projectId));
     assertTrue(currency != address(0));
@@ -118,6 +118,56 @@ contract ForkTest is Test {
     ) = _formatDeployData();
 
     bluntDeployer.launchProjectFor(deployBluntDelegateData, launchProjectData);
+  }
+
+  function testCloseBluntProject_failed() public {
+    projectOwner = 0xF77259Fe51e399BDE92C14a97Ef7C416518e4B46;
+    uint256 projectId = 516;
+    BluntDelegateClone delegate = BluntDelegateClone(0x2b9B2E52F4DF90b77c1569b072c700a6848D543f);
+
+    uint256 amount = 69 ether - 1;
+    jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), msg.sender, 0, false, '', '');
+
+    vm.prank(projectOwner);
+    delegate.closeRound();
+
+    assertTrue(delegate.getRoundInfo().isRoundClosed);
+    assertEq(jbProjects.ownerOf(projectId), address(delegate));
+  }
+
+  function testCloseBluntProject_success() public {
+    projectOwner = 0xF77259Fe51e399BDE92C14a97Ef7C416518e4B46;
+    uint256 projectId = 516;
+    BluntDelegateClone delegate = BluntDelegateClone(0x2b9B2E52F4DF90b77c1569b072c700a6848D543f);
+    ERC20Votes token = ERC20Votes(0xD8b620f833b93624111e169855775e3403e9a65A);
+
+    uint256 amount = 69 ether + 1;
+    jbETHPaymentTerminal.pay{value: amount}(projectId, 0, address(0), msg.sender, 0, false, '', '');
+
+    address[] memory targets = new address[](1);
+    uint256[] memory values = new uint256[](1);
+    bytes[] memory calldatas = new bytes[](1);
+    targets[0] = address(delegate);
+    calldatas[0] = abi.encodeCall(delegate.closeRound, ());
+
+    vm.startPrank(0xf32dd1Bd55bD14d929218499a2E7D106F72f79c7);
+
+    token.delegate(0xf32dd1Bd55bD14d929218499a2E7D106F72f79c7);
+    vm.roll(block.number + 1);
+
+    uint256 proposalId = IGovernor(projectOwner).propose(targets, values, calldatas, 'TEST');
+    vm.roll(block.number + 50401);
+
+    IGovernor(projectOwner).castVote(proposalId, 1);
+
+    vm.stopPrank();
+
+    vm.roll(block.number + 50401);
+
+    IGovernor(projectOwner).execute(targets, values, calldatas, keccak256(bytes('TEST')));
+
+    assertTrue(delegate.getRoundInfo().isRoundClosed);
+    assertEq(jbProjects.ownerOf(projectId), projectOwner);
   }
 
   function _formatDeployData()
@@ -239,19 +289,24 @@ contract ForkTest is Test {
     );
     assertEq(distributionLimit, bluntFee);
     assertEq(projectBalance, totalContributions_ - bluntFee);
-    assertEq(bfBalance-initBfBalance_, bluntFee);
+    assertEq(bfBalance - initBfBalance_, bluntFee);
 
     address owner = jbProjects.ownerOf(projectId_);
     assertEq(owner, projectOwner);
   }
-  
+
   /**
     @notice
     Helper function to calculate blunt fee based on raised amount.
   */
   function _calculateFee(uint256 raised) internal view returns (uint256 fee) {
     unchecked {
-      uint256 raisedUsd = priceFeed.getQuote(uint128(raised), address(uint160(uint256(keccak256('eth')))), address(0), 30 minutes);
+      uint256 raisedUsd = priceFeed.getQuote(
+        uint128(raised),
+        address(uint160(uint256(keccak256('eth')))),
+        address(0),
+        30 minutes
+      );
       uint256 k;
       if (raisedUsd < _lowerFundraiseBoundary) {
         k = _maxK;
